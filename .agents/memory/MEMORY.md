@@ -1,0 +1,2 @@
+- [Bengali PDF Extraction](bengali-pdf-extraction.md) — BD EC PDFs use SutonnyMJ font; pymupdf + char map + visual-order fix needed; pdftotext produces garbled text.
+- [PDF Extractor Path Resolution](pdf-extractor-path.md) — Python script path must use process.cwd() not __dirname (bundled ESM context breaks __dirname).
