@@ -1,0 +1,53 @@
+​Project Overview:
+I want to build a full-stack web application to host and manage Bangladesh Voter Information. The system will have a public-facing search interface, a secure Admin Panel with a dashboard, an automated data extraction/upload system, and a public API for third-party integrations.
+​Tech Stack Recommendation:
+​Backend: Python (FastAPI or Flask) - Best for handling OCR, file processing, and text encoding.
+​Database: SQLite (for development) or PostgreSQL.
+​Frontend: HTML, CSS (TailwindCSS), and Vanilla JS or React.js.
+​Data Extraction: pdfplumber, pandas, or pytesseract (with Bengali language support).
+​1. Core Features & Routes:
+​Search Interface (Public):
+​Basic Search 1: Search by exact "Voter Number" (ভোটার নং) to display the specific person's full details.
+​Advanced Search: Search by combining multiple fields like "Name, Father's Name, District, and Thana" to fetch matching records.
+​API Endpoint:
+​Create a REST API endpoint (e.g., /api/v1/search-voter) that accepts GET/POST requests with search parameters and returns JSON data.
+​2. Admin Panel (Protected Route):
+​Authentication: Secure login system (Username & Password) for the admin.
+​Dashboard: A visual dashboard displaying:
+​Total number of voters.
+​Voters grouped by District or Ward (Bar/Pie Chart).
+​File Upload & Management:
+​Admin can upload files in Zip, PDF, Excel (.xlsx), and Word (.docx) formats.
+​A table interface to view, edit, or delete existing voter records from the database.
+​3. Special Data Extraction & Text Encoding Handling (CRITICAL):
+​The uploaded documents contain Bengali text.
+​Encoding Fix Requirement: Raw files might have corrupted ANSI/Bijoy encodings or broken Unicode (e.g., the text might look like "Ïজলা" instead of "জেলা", or "নারায়ণগý" instead of "নারায়ণগঞ্জ"). The backend parsing logic MUST handle these anomalies, sanitize the text, convert it to standard Unicode (UTF-8), and store it perfectly in the database without any "???" or broken characters.
+​The extraction logic must map the extracted text to a highly detailed database schema.
+​4. UI/UX & Typography Requirements:
+​The design should be clean, responsive, and modern.
+​Fonts: Load "SolaimanLipi" for Bengali text and "Noto Sans" for English text.
+​Data results must be displayed in a clean, categorized profile card format (Personal Details, Address Details, and Area Details).
+​5. Sample Data Structure & Database Schema Requirements:
+Here is the exact sample of the data you need to parse and store. Use this to create the Database Schema (Tables and Columns):
+​Personal Details:
+​Serial No: 01
+​Name: শামীমা আক্তার শোভা
+​Voter No: ৬৭১১৭৬০০০০০১
+​Father: আয়ুব আলী মিয়া
+​Mother: আনোয়ারা বেগম
+​Occupation: গৃহিনী
+​DOB: ০৩/১০/১৯৭৪
+​Address Details:
+​General Address: ১৬, ওয়াটার ওয়ার্কস রোড, নারায়ণগঞ্জ সদর, নারায়ণগঞ্জ
+​Region (অঞ্চল): ঢাকা
+​District (জেলা): নারায়ণগঞ্জ
+​Upazila/Thana (উপজেলা/থানা): নারায়ণগঞ্জ সদর
+​City Corp/Municipality (সিটি কর্পোরেশন/পৌরসভা): নারায়ণগঞ্জ সিটি কর্পোরেশন
+​Post Office (ডাকঘর): নারায়নগঞ্জ
+​Post Code (পোস্টকোড): ১৪০০
+​Voter Area Details:
+​Voter Area Name (ভোটার এলাকার নাম): নিউ হাজীগঞ্জ রোড
+​Voter Area Number (ভোটার এলাকার নম্বর): ১১৭৫
+​Area Code: ১১৭৬
+​Ward (ওয়ার্ড): ওয়ার্ড নং-১১
+​Please generate the complete project structure, including the backend logic, the comprehensive database models for all the fields mentioned above, frontend templates, and the specific Python logic to extract and sanitize the Bengali text securely.

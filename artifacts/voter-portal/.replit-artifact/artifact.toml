@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Bangladesh Voter Portal"
+version = "1.0.0"
+id = "artifacts/voter-portal"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22403
+
+[services.development]
+run = "pnpm --filter @workspace/voter-portal run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/voter-portal", "run", "build" ]
+publicDir = "artifacts/voter-portal/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22403"
+BASE_PATH = "/"

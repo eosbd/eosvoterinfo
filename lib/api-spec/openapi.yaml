@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Bangladesh Voter Information API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: voters
+    description: Voter search and management
+  - name: admin
+    description: Admin authentication and dashboard
+  - name: uploads
+    description: File upload and processing
 paths:
   /healthz:
     get:
@@ -24,6 +30,310 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /voters/search:
+    get:
+      operationId: searchVoters
+      tags: [voters]
+      summary: Search voters
+      description: Search voters by voter number or by combined fields (name, father, district, thana)
+      parameters:
+        - name: voterNo
+          in: query
+          schema:
+            type: string
+          description: Exact voter number search (Bengali digits ok)
+        - name: name
+          in: query
+          schema:
+            type: string
+          description: Partial name search
+        - name: fatherName
+          in: query
+          schema:
+            type: string
+          description: Partial father name search
+        - name: district
+          in: query
+          schema:
+            type: string
+          description: District filter
+        - name: thana
+          in: query
+          schema:
+            type: string
+          description: Upazila/thana filter
+        - name: ward
+          in: query
+          schema:
+            type: string
+          description: Ward filter
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoterSearchResult"
+
+  /voters/{id}:
+    get:
+      operationId: getVoter
+      tags: [voters]
+      summary: Get a single voter by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Voter record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Voter"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateVoter
+      tags: [admin]
+      summary: Update a voter record (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoterUpdate"
+      responses:
+        "200":
+          description: Updated voter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Voter"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteVoter
+      tags: [admin]
+      summary: Delete a voter record (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /voters:
+    post:
+      operationId: createVoter
+      tags: [admin]
+      summary: Create a voter record (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoterInput"
+      responses:
+        "201":
+          description: Created voter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Voter"
+
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [admin]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logged out
+
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: Get current admin session
+      responses:
+        "200":
+          description: Current admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [admin]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /admin/voters:
+    get:
+      operationId: listVotersAdmin
+      tags: [admin]
+      summary: List all voters with pagination (admin)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: district
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated voter list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoterSearchResult"
+
+  /admin/upload:
+    post:
+      operationId: uploadVoterFile
+      tags: [uploads]
+      summary: Upload voter data file (ZIP, PDF, XLSX, DOCX)
+      responses:
+        "200":
+          description: Upload result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/uploads:
+    get:
+      operationId: listUploads
+      tags: [uploads]
+      summary: List recent uploads
+      responses:
+        "200":
+          description: List of uploads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UploadJob"
+
+  /v1/search-voter:
+    get:
+      operationId: publicApiSearchVoter
+      tags: [voters]
+      summary: Public API - search voter
+      parameters:
+        - name: voterNo
+          in: query
+          schema:
+            type: string
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: district
+          in: query
+          schema:
+            type: string
+        - name: thana
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoterSearchResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +344,266 @@ components:
       required:
         - status
 
+    Voter:
+      type: object
+      required:
+        - id
+        - voterNo
+        - name
+      properties:
+        id:
+          type: integer
+        serialNo:
+          type: ["string", "null"]
+        voterNo:
+          type: string
+        name:
+          type: string
+        fatherName:
+          type: ["string", "null"]
+        motherName:
+          type: ["string", "null"]
+        occupation:
+          type: ["string", "null"]
+        dob:
+          type: ["string", "null"]
+        generalAddress:
+          type: ["string", "null"]
+        region:
+          type: ["string", "null"]
+        district:
+          type: ["string", "null"]
+        upazilaThana:
+          type: ["string", "null"]
+        cityCorp:
+          type: ["string", "null"]
+        postOffice:
+          type: ["string", "null"]
+        postCode:
+          type: ["string", "null"]
+        voterAreaName:
+          type: ["string", "null"]
+        voterAreaNumber:
+          type: ["string", "null"]
+        areaCode:
+          type: ["string", "null"]
+        ward:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    VoterInput:
+      type: object
+      required:
+        - voterNo
+        - name
+      properties:
+        serialNo:
+          type: string
+        voterNo:
+          type: string
+        name:
+          type: string
+        fatherName:
+          type: string
+        motherName:
+          type: string
+        occupation:
+          type: string
+        dob:
+          type: string
+        generalAddress:
+          type: string
+        region:
+          type: string
+        district:
+          type: string
+        upazilaThana:
+          type: string
+        cityCorp:
+          type: string
+        postOffice:
+          type: string
+        postCode:
+          type: string
+        voterAreaName:
+          type: string
+        voterAreaNumber:
+          type: string
+        areaCode:
+          type: string
+        ward:
+          type: string
+
+    VoterUpdate:
+      type: object
+      properties:
+        serialNo:
+          type: string
+        voterNo:
+          type: string
+        name:
+          type: string
+        fatherName:
+          type: string
+        motherName:
+          type: string
+        occupation:
+          type: string
+        dob:
+          type: string
+        generalAddress:
+          type: string
+        region:
+          type: string
+        district:
+          type: string
+        upazilaThana:
+          type: string
+        cityCorp:
+          type: string
+        postOffice:
+          type: string
+        postCode:
+          type: string
+        voterAreaName:
+          type: string
+        voterAreaNumber:
+          type: string
+        areaCode:
+          type: string
+        ward:
+          type: string
+
+    VoterSearchResult:
+      type: object
+      required:
+        - voters
+        - total
+        - page
+        - limit
+      properties:
+        voters:
+          type: array
+          items:
+            $ref: "#/components/schemas/Voter"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    LoginInput:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    LoginResult:
+      type: object
+      required:
+        - success
+        - user
+      properties:
+        success:
+          type: boolean
+        user:
+          $ref: "#/components/schemas/AdminUser"
+
+    AdminUser:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+
+    DashboardStats:
+      type: object
+      required:
+        - totalVoters
+        - byDistrict
+        - byWard
+        - recentUploads
+      properties:
+        totalVoters:
+          type: integer
+        byDistrict:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupCount"
+        byWard:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupCount"
+        recentUploads:
+          type: integer
+
+    GroupCount:
+      type: object
+      required:
+        - label
+        - count
+      properties:
+        label:
+          type: string
+        count:
+          type: integer
+
+    UploadResult:
+      type: object
+      required:
+        - jobId
+        - status
+        - message
+      properties:
+        jobId:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+        recordsProcessed:
+          type: ["integer", "null"]
+        recordsFailed:
+          type: ["integer", "null"]
+
+    UploadJob:
+      type: object
+      required:
+        - id
+        - filename
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        filename:
+          type: string
+        status:
+          type: string
+        recordsProcessed:
+          type: ["integer", "null"]
+        recordsFailed:
+          type: ["integer", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
