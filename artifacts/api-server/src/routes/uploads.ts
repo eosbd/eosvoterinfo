@@ -131,6 +131,43 @@ async function processUploadJob(
   }
 }
 
+/**
+ * Preview endpoint — extract rows from a file and return them WITHOUT inserting.
+ * Use this to diagnose why data is not being found.
+ * Returns: { rawRows, mappedRows, sample, totalRaw, totalMapped }
+ */
+router.post("/admin/upload-preview", upload.single("file"), async (req, res): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({ error: "No file uploaded" });
+    return;
+  }
+
+  try {
+    const rawRows = await extractRows(req.file.path, req.file.originalname);
+    const mappedRows = rawRows
+      .map((r) => buildVoterRecord(r))
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    // Return the first 10 raw rows and first 10 mapped rows as a sample
+    res.json({
+      filename: req.file.originalname,
+      totalRaw: rawRows.length,
+      totalMapped: mappedRows.length,
+      sampleRawRows: rawRows.slice(0, 10),
+      sampleMappedRows: mappedRows.slice(0, 10),
+      message:
+        rawRows.length === 0
+          ? "No rows extracted — check logs for header detection details"
+          : mappedRows.length === 0
+            ? "Rows found but none could be mapped — check sampleRawRows to see what headers were detected"
+            : `${mappedRows.length} of ${rawRows.length} rows successfully mapped`,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Preview extraction failed");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // Single file upload
 router.post("/admin/upload", upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {

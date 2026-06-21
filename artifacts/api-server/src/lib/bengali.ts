@@ -1,39 +1,9 @@
 /**
  * Bengali text utilities — Bijoy/ANSI to Unicode conversion and field name mapping.
- *
- * Bijoy Bayanno is the most common legacy Bengali encoding in Bangladesh.
- * Characters are stored as Latin codepoints and must be remapped to Unicode.
  */
-
-// Complete Bijoy character-level mapping (single chars first, then digraphs)
-const BIJOY_MAP: [string, string][] = [
-  // Vowels / matras
-  ["Av", "আ"], ["A", "অ"],
-  ["B", "ই"], ["C", "ঈ"], ["D", "উ"], ["E", "ঊ"],
-  ["F", "ঋ"], ["G", "এ"], ["H", "ঐ"], ["I", "ও"], ["J", "ঔ"],
-  // Consonants
-  ["K", "ক"], ["L", "খ"], ["M", "গ"], ["N", "ঘ"], ["O", "ঙ"],
-  ["P", "চ"], ["Q", "ছ"], ["R", "জ"], ["S", "ঝ"], ["T", "ঞ"],
-  ["U", "ট"], ["V", "ঠ"], ["W", "ড"], ["X", "ঢ"], ["Y", "ণ"],
-  ["Z", "ত"], ["a", "থ"], ["b", "দ"], ["c", "ধ"], ["d", "ন"],
-  ["e", "প"], ["f", "ফ"], ["g", "ব"], ["h", "ভ"], ["i", "ম"],
-  ["j", "য"], ["k", "র"], ["l", "ল"], ["m", "শ"], ["n", "ষ"],
-  ["o", "স"], ["p", "হ"], ["q", "ড়"], ["r", "ঢ়"], ["s", "য়"],
-  ["t", "ৎ"], ["u", "ং"], ["v", "ঃ"], ["w", "ঁ"],
-  // Digits
-  ["0", "০"], ["1", "১"], ["2", "২"], ["3", "৩"], ["4", "৪"],
-  ["5", "৫"], ["6", "৬"], ["7", "৭"], ["8", "৮"], ["9", "৯"],
-  // Matras / vowel signs
-  ["v", "ি"], ["vi", "ী"], ["y", "ু"], ["x", "ূ"],
-  ["`", "্"], ["~", "্"],
-  // Hasanta, anusvara, visarga
-  ["&", "ঃ"], ["*", "ঁ"],
-  // Punctuation → keep as-is
-];
 
 // Common broken-Unicode / corrupted sequences found in Bijoy-exported files
 const CORRUPTION_PATTERNS: [RegExp, string][] = [
-  // Well-known mojibake sequences
   [/নারায়ণগý/g, "নারায়ণগঞ্জ"],
   [/Ïজলা/g, "জেলা"],
   [/Ï/g, "জে"],
@@ -64,17 +34,17 @@ const CORRUPTION_PATTERNS: [RegExp, string][] = [
   [/ú/g, "ং"],
   [/û/g, "ঃ"],
   [/ü/g, "ঁ"],
-  // Replacement characters
   [/\uFFFD+/g, ""],
-  // Null bytes
   [/\x00/g, ""],
-  // Windows-1252 artifacts that map to Bengali broken chars
   [/\x8d/g, "্"],
   [/\x9d/g, ""],
 ];
 
-// Bengali header names → field keys
-export const BENGALI_HEADER_MAP: Record<string, string> = {
+/**
+ * Exact-match header table.
+ * Keys are lowercased + normalised; values are canonical field names.
+ */
+const EXACT_HEADER_MAP: Record<string, string> = {
   // Serial
   "ক্রমিক": "serialNo",
   "ক্রমিক নং": "serialNo",
@@ -84,6 +54,9 @@ export const BENGALI_HEADER_MAP: Record<string, string> = {
   "serial": "serialNo",
   "sl": "serialNo",
   "sl.no": "serialNo",
+  "sl no": "serialNo",
+  "no": "serialNo",
+  "নং": "serialNo",
   // Voter No
   "ভোটার নং": "voterNo",
   "ভোটার নম্বর": "voterNo",
@@ -93,11 +66,17 @@ export const BENGALI_HEADER_MAP: Record<string, string> = {
   "voterno": "voterNo",
   "voter_no": "voterNo",
   "nid": "voterNo",
+  "voter id": "voterNo",
+  "voter_id": "voterNo",
+  "id no": "voterNo",
+  "id number": "voterNo",
   // Name
   "নাম": "name",
   "ভোটারের নাম": "name",
   "name": "name",
   "voter name": "name",
+  "full name": "name",
+  "voter's name": "name",
   // Father
   "পিতা": "fatherName",
   "বাবার নাম": "fatherName",
@@ -105,6 +84,8 @@ export const BENGALI_HEADER_MAP: Record<string, string> = {
   "father": "fatherName",
   "father name": "fatherName",
   "father's name": "fatherName",
+  "fname": "fatherName",
+  "f. name": "fatherName",
   // Mother
   "মাতা": "motherName",
   "মায়ের নাম": "motherName",
@@ -112,62 +93,88 @@ export const BENGALI_HEADER_MAP: Record<string, string> = {
   "mother": "motherName",
   "mother name": "motherName",
   "mother's name": "motherName",
+  "mname": "motherName",
+  "m. name": "motherName",
   // Occupation
   "পেশা": "occupation",
   "occupation": "occupation",
+  "job": "occupation",
+  "profession": "occupation",
   // DOB
   "জন্ম তারিখ": "dob",
   "জন্মতারিখ": "dob",
   "জন্ম": "dob",
   "dob": "dob",
   "date of birth": "dob",
+  "birth date": "dob",
+  "d.o.b": "dob",
+  "জন্মদিন": "dob",
   // Address
   "ঠিকানা": "generalAddress",
   "সাধারণ ঠিকানা": "generalAddress",
   "address": "generalAddress",
   "general address": "generalAddress",
-  // Region
+  "addr": "generalAddress",
+  "বাসস্থান": "generalAddress",
+  // Region / Division
   "অঞ্চল": "region",
   "region": "region",
   "বিভাগ": "region",
   "division": "region",
+  "div": "region",
   // District
   "জেলা": "district",
   "district": "district",
   "dist": "district",
   "জেলার নাম": "district",
-  // Upazila/Thana
+  "zila": "district",
+  "zilla": "district",
+  // Upazila / Thana
   "উপজেলা": "upazilaThana",
   "থানা": "upazilaThana",
   "উপজেলা/থানা": "upazilaThana",
+  "থানা/উপজেলা": "upazilaThana",
   "thana": "upazilaThana",
   "upazila": "upazilaThana",
   "upazilla": "upazilaThana",
-  // City corp
+  "sub-district": "upazilaThana",
+  "subdistrict": "upazilaThana",
+  "ps": "upazilaThana",
+  // City corp / Municipality
   "সিটি কর্পোরেশন": "cityCorp",
   "পৌরসভা": "cityCorp",
   "city corp": "cityCorp",
   "municipality": "cityCorp",
+  "pourashava": "cityCorp",
+  "city corporation": "cityCorp",
   // Post office
   "ডাকঘর": "postOffice",
   "post office": "postOffice",
   "po": "postOffice",
+  "post": "postOffice",
   // Post code
   "পোস্টকোড": "postCode",
   "post code": "postCode",
   "postcode": "postCode",
   "zip": "postCode",
+  "zip code": "postCode",
+  "postal code": "postCode",
   // Voter area name
   "ভোটার এলাকার নাম": "voterAreaName",
   "ভোটার এলাকা": "voterAreaName",
   "voter area": "voterAreaName",
   "voter area name": "voterAreaName",
   "এলাকার নাম": "voterAreaName",
+  "এলাকা": "voterAreaName",
+  "area name": "voterAreaName",
+  "constituency": "voterAreaName",
   // Voter area number
   "ভোটার এলাকার নম্বর": "voterAreaNumber",
   "ভোটার এলাকার নং": "voterAreaNumber",
   "voter area number": "voterAreaNumber",
   "voter area no": "voterAreaNumber",
+  "area number": "voterAreaNumber",
+  "area no": "voterAreaNumber",
   // Area code
   "এলাকা কোড": "areaCode",
   "area code": "areaCode",
@@ -177,11 +184,65 @@ export const BENGALI_HEADER_MAP: Record<string, string> = {
   "ward": "ward",
   "ward no": "ward",
   "ward number": "ward",
+  "ward nо": "ward",
+  "ওয়ার্ড নং": "ward",
+  "ওয়ার্ড নম্বর": "ward",
 };
 
 /**
+ * Substring-token match table.
+ * If a header CONTAINS one of these tokens, it maps to the field.
+ * Less precise — only checked when exact matching fails.
+ */
+const CONTAINS_MAP: Array<[string, string]> = [
+  ["ভোটার নং", "voterNo"],
+  ["ভোটার নম্বর", "voterNo"],
+  ["voter no", "voterNo"],
+  ["voter id", "voterNo"],
+  ["ভোটার", "voterNo"],
+  ["voter", "voterNo"],
+  ["পিতা", "fatherName"],
+  ["father", "fatherName"],
+  ["মাতা", "motherName"],
+  ["mother", "motherName"],
+  ["জেলা", "district"],
+  ["district", "district"],
+  ["উপজেলা", "upazilaThana"],
+  ["thana", "upazilaThana"],
+  ["upazila", "upazilaThana"],
+  ["ওয়ার্ড", "ward"],
+  ["ward", "ward"],
+  ["পেশা", "occupation"],
+  ["জন্ম", "dob"],
+  ["birth", "dob"],
+  ["ঠিকানা", "generalAddress"],
+  ["address", "generalAddress"],
+  ["বিভাগ", "region"],
+  ["division", "region"],
+  ["ডাকঘর", "postOffice"],
+  ["post office", "postOffice"],
+  ["পোস্ট", "postCode"],
+  ["post code", "postCode"],
+  ["postcode", "postCode"],
+  ["এলাকার নাম", "voterAreaName"],
+  ["এলাকা", "voterAreaName"],
+  ["নাম", "name"],
+  ["name", "name"],
+  ["ক্রমিক", "serialNo"],
+  ["serial", "serialNo"],
+];
+
+/** Strip Bengali punctuation and normalise whitespace for matching */
+function normalise(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[।,;:।\-_/\\().]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Apply corruption-pattern fixes to a string.
- * Handles Bijoy mojibake and common encoding artifacts.
  */
 export function fixBengaliEncoding(text: string): string {
   if (!text) return text;
@@ -193,20 +254,53 @@ export function fixBengaliEncoding(text: string): string {
 }
 
 /**
- * Normalise a header string to a field key.
- * Tries the Bengali map first, then falls back to a normalised English match.
+ * Match a raw header string to a field key.
+ * 1. Exact normalised match (fastest, most accurate)
+ * 2. Substring/contains match (handles extra words around the key token)
+ * Returns null if no match found.
  */
-export function headerToField(raw: string): string | null {
-  const key = raw.trim().toLowerCase().replace(/\s+/g, " ");
-  return BENGALI_HEADER_MAP[key] ?? BENGALI_HEADER_MAP[raw.trim()] ?? null;
+export function matchHeader(raw: string): string | null {
+  if (!raw || !raw.trim()) return null;
+
+  const norm = normalise(fixBengaliEncoding(raw));
+
+  // 1. Exact match on normalised key
+  if (EXACT_HEADER_MAP[norm]) return EXACT_HEADER_MAP[norm];
+
+  // 2. Try exact match on original (un-normalised) key
+  const orig = fixBengaliEncoding(raw).trim();
+  if (EXACT_HEADER_MAP[orig]) return EXACT_HEADER_MAP[orig];
+  if (EXACT_HEADER_MAP[orig.toLowerCase()]) return EXACT_HEADER_MAP[orig.toLowerCase()];
+
+  // 3. Contains match — try each token
+  for (const [token, field] of CONTAINS_MAP) {
+    if (norm.includes(token.toLowerCase()) || orig.includes(token)) {
+      return field;
+    }
+  }
+
+  return null;
 }
 
 /**
- * Build a voter record from a {header → value} map.
- * Applies encoding fixes to every value.
+ * Build a voter record from a row.
+ *
+ * Supports TWO row formats:
+ *   A. Field-keyed rows (from new extractors): keys are already field names
+ *      e.g. { name: "শামীমা", district: "নারায়ণগঞ্জ" }
+ *   B. Header-keyed rows (legacy): keys are raw header text
+ *      e.g. { "নাম": "শামীমা", "জেলা": "নারায়ণগঞ্জ" }
+ *
+ * Format A is detected when at least one key matches a known field name directly.
  */
+const KNOWN_FIELDS = new Set([
+  "serialNo", "voterNo", "name", "fatherName", "motherName", "occupation",
+  "dob", "generalAddress", "region", "district", "upazilaThana", "cityCorp",
+  "postOffice", "postCode", "voterAreaName", "voterAreaNumber", "areaCode", "ward",
+]);
+
 export function buildVoterRecord(
-  row: Record<string, string>
+  row: Record<string, string>,
 ): {
   voterNo: string;
   name: string;
@@ -214,10 +308,23 @@ export function buildVoterRecord(
 } | null {
   const record: Record<string, string | undefined> = {};
 
-  for (const [rawKey, rawVal] of Object.entries(row)) {
-    const field = headerToField(rawKey);
-    if (field && rawVal) {
-      record[field] = fixBengaliEncoding(String(rawVal));
+  // Detect format: are the keys already field names?
+  const isPreMapped = Object.keys(row).some((k) => KNOWN_FIELDS.has(k));
+
+  if (isPreMapped) {
+    // Format A: keys are field names — copy directly
+    for (const [field, val] of Object.entries(row)) {
+      if (KNOWN_FIELDS.has(field) && val) {
+        record[field] = fixBengaliEncoding(val);
+      }
+    }
+  } else {
+    // Format B: keys are raw headers — map them
+    for (const [rawKey, rawVal] of Object.entries(row)) {
+      const field = matchHeader(rawKey);
+      if (field && rawVal) {
+        record[field] = fixBengaliEncoding(String(rawVal));
+      }
     }
   }
 

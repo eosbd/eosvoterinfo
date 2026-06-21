@@ -33,7 +33,7 @@ export async function extractRowsFromZipBuffer(buffer: Buffer): Promise<Record<s
       } else if (ext === ".xlsx" || ext === ".xls") {
         rows = extractRowsFromXlsxBuffer(entryBuffer);
       } else if (ext === ".pdf") {
-        rows = await extractRowsFromPdfBuffer(entryBuffer);
+        rows = await extractRowsFromPdfBuffer(entryBuffer, entry.entryName);
       } else if (ext === ".docx" || ext === ".doc") {
         rows = await extractRowsFromDocxBuffer(entryBuffer);
       }

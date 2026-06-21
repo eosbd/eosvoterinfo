@@ -1,5 +1,5 @@
 import mammoth from "mammoth";
-import { fixBengaliEncoding, headerToField } from "../bengali";
+import { fixBengaliEncoding, matchHeader } from "../bengali";
 
 /**
  * Extract voter rows from DOCX files.
@@ -52,7 +52,7 @@ function parseTextToRows(text: string): Record<string, string>[] {
     if (colonIdx > 0) {
       const label = line.slice(0, colonIdx).trim();
       const value = line.slice(colonIdx + 1).trim();
-      const field = headerToField(label);
+      const field = matchHeader(label);
       if (field && value) {
         // If we hit another "name" field, flush the current record
         if (field === "name" && current["name"]) {
