@@ -33,7 +33,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB — full BD files can be large
   fileFilter: (_req, file, cb) => {
     const allowed = [".zip", ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv"];
     const ext = path.extname(file.originalname).toLowerCase();
@@ -157,8 +156,8 @@ router.post("/admin/upload", upload.single("file"), async (req, res): Promise<vo
   });
 });
 
-// Multiple files upload (up to 20 at once)
-router.post("/admin/upload-multiple", upload.array("files", 20), async (req, res): Promise<void> => {
+// Multiple files upload (unlimited)
+router.post("/admin/upload-multiple", upload.array("files"), async (req, res): Promise<void> => {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files || files.length === 0) {
     res.status(400).json({ error: "No files uploaded" });

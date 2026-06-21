@@ -241,7 +241,7 @@ export default function AdminUpload() {
               {dropping ? "এখানে ছেড়ে দিন" : "ফাইল টেনে এখানে ছাড়ুন অথবা ক্লিক করুন"}
             </p>
             <p className="text-sm text-muted-foreground mb-6">
-              একসাথে একাধিক ফাইল আপলোড করা যাবে · সর্বোচ্চ ৫০০ MB প্রতি ফাইল
+              একসাথে যেকোনো সংখ্যক ফাইল আপলোড করা যাবে, কোনো সীমা নেই
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {["ZIP", "PDF", "XLSX", "XLS", "DOCX", "DOC", "CSV"].map((ext) => (
