@@ -1,4 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/noto-sans-bengali-bengali-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/noto-sans-bengali-bengali-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/noto-sans-bengali-bengali-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/noto-sans-bengali-bengali-700-normal.woff2') format('woff2');
+}
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -104,9 +131,9 @@
   --chart-4: 180 50% 50%;
   --chart-5: 140 40% 55%;
 
-  --app-font-sans: 'Noto Sans', sans-serif;
+  --app-font-sans: 'Noto Sans Bengali', sans-serif;
   --app-font-bengali: 'Noto Sans Bengali', sans-serif;
-  --app-font-serif: Georgia, serif;
+  --app-font-serif: 'Noto Sans Bengali', Georgia, serif;
   --app-font-mono: Menlo, monospace;
   
   --radius: 0.5rem;
@@ -163,9 +190,12 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Noto Sans', sans-serif;
   }
-  /* Force bengali font for specific bengali classes */
   .font-bengali {
-    font-family: var(--app-font-bengali), var(--app-font-sans);
+    font-family: 'SolaimanLipi', 'Noto Sans Bengali', sans-serif !important;
+  }
+  input, textarea, select, button {
+    font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Noto Sans', sans-serif;
   }
 }

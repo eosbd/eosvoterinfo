@@ -424,6 +424,10 @@ importers:
         version: 3.25.76
 
   artifacts/voter-portal:
+    dependencies:
+      '@fontsource/noto-sans-bengali':
+        specifier: ^5.2.11
+        version: 5.2.11
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -787,6 +791,9 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@fontsource/noto-sans-bengali@5.2.11':
+    resolution: {integrity: sha512-sDCKgC1u83/7JwulfgyvCDab97OkN375RDeGcXtvmI2Vx9ZY5mAcjb4qBtZbv53sL8i+jLawsWvZQVs4zCNkug==}
 
   '@gerrit0/mini-shiki@3.23.0':
     resolution: {integrity: sha512-bEMORlG0cqdjVyCEuU0cDQbORWX+kYCeo0kV1lbxF5bt4r7SID2l9bqsxJEM0zndaxpOUT7riCyIVEuqq/Ynxg==}
@@ -3618,6 +3625,8 @@ snapshots:
       react-dom: 19.1.0(react@19.1.0)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@fontsource/noto-sans-bengali@5.2.11': {}
 
   '@gerrit0/mini-shiki@3.23.0':
     dependencies:
