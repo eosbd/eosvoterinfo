@@ -5,6 +5,12 @@ import fs from "fs";
 import { eq, desc } from "drizzle-orm";
 import { db, uploadJobsTable, votersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { buildVoterRecord } from "../lib/bengali";
+import { extractRowsFromCsvFile } from "../lib/extractors/csvExtractor";
+import { extractRowsFromXlsxFile } from "../lib/extractors/xlsxExtractor";
+import { extractRowsFromPdfFile } from "../lib/extractors/pdfExtractor";
+import { extractRowsFromDocxFile } from "../lib/extractors/docxExtractor";
+import { extractRowsFromZipFile } from "../lib/extractors/zipExtractor";
 
 const router: IRouter = Router();
 
@@ -27,159 +33,98 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB — full BD files can be large
   fileFilter: (_req, file, cb) => {
-    const allowed = [".zip", ".pdf", ".xlsx", ".docx", ".csv"];
+    const allowed = [".zip", ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv"];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error(`File type not supported: ${ext}. Allowed: ${allowed.join(", ")}`));
+      cb(new Error(`File type not supported: ${ext}. Allowed: ZIP, PDF, XLSX, XLS, DOCX, DOC, CSV`));
     }
   },
 });
 
-function fixBengaliEncoding(text: string): string {
-  if (!text) return text;
-  const replacements: [RegExp, string][] = [
-    [/Ï/g, "জে"],
-    [/ý/g, "ঞ্জ"],
-    [/ÿ/g, "ষ্ট"],
-    [/â/g, "আ"],
-    [/\uFFFD/g, ""],
-  ];
-  let result = text;
-  for (const [pattern, replacement] of replacements) {
-    result = result.replace(pattern, replacement);
+/** Extract raw rows from any supported file type */
+async function extractRows(filePath: string, originalName: string): Promise<Record<string, string>[]> {
+  const ext = path.extname(originalName).toLowerCase();
+  switch (ext) {
+    case ".csv":
+      return extractRowsFromCsvFile(filePath);
+    case ".xlsx":
+    case ".xls":
+      return extractRowsFromXlsxFile(filePath);
+    case ".pdf":
+      return extractRowsFromPdfFile(filePath);
+    case ".docx":
+    case ".doc":
+      return extractRowsFromDocxFile(filePath);
+    case ".zip":
+      return extractRowsFromZipFile(filePath);
+    default:
+      return [];
   }
-  return result.trim();
 }
 
-function parseCsvRow(row: string): string[] {
-  const cells: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-    } else if (ch === "," && !inQuotes) {
-      cells.push(current.trim());
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  cells.push(current.trim());
-  return cells;
-}
-
-const HEADER_MAP: Record<string, string> = {
-  "voter no": "voterNo",
-  "voterno": "voterNo",
-  "voter_no": "voterNo",
-  "name": "name",
-  "father": "fatherName",
-  "father name": "fatherName",
-  "mother": "motherName",
-  "mother name": "motherName",
-  "occupation": "occupation",
-  "dob": "dob",
-  "address": "generalAddress",
-  "general address": "generalAddress",
-  "region": "region",
-  "district": "district",
-  "thana": "upazilaThana",
-  "upazila": "upazilaThana",
-  "city corp": "cityCorp",
-  "post office": "postOffice",
-  "post code": "postCode",
-  "voter area name": "voterAreaName",
-  "voter area number": "voterAreaNumber",
-  "area code": "areaCode",
-  "ward": "ward",
-  "serial no": "serialNo",
-  "serial": "serialNo",
-};
-
-async function processCsvFile(filePath: string): Promise<{ processed: number; failed: number }> {
-  const content = fs.readFileSync(filePath, "utf-8");
-  const lines = content.split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return { processed: 0, failed: 0 };
-
-  const headers = parseCsvRow(lines[0]).map((h) => h.toLowerCase().trim());
+/** Insert rows in batches of 200 for performance */
+async function batchInsertVoters(
+  rows: Record<string, string>[],
+): Promise<{ processed: number; failed: number }> {
   let processed = 0;
   let failed = 0;
 
-  for (let i = 1; i < lines.length; i++) {
+  const BATCH = 200;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const chunk = rows.slice(i, i + BATCH);
+    const records = chunk
+      .map((r) => buildVoterRecord(r))
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    if (records.length === 0) {
+      failed += chunk.length;
+      continue;
+    }
+
     try {
-      const cells = parseCsvRow(lines[i]);
-      const record: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        const field = HEADER_MAP[h];
-        if (field && cells[idx]) {
-          record[field] = fixBengaliEncoding(cells[idx]);
-        }
-      });
-
-      if (!record["name"] && !record["voterNo"]) {
-        failed++;
-        continue;
-      }
-
-      await db.insert(votersTable).values({
-        voterNo: record["voterNo"] || `IMPORT-${Date.now()}-${i}`,
-        name: record["name"] || "Unknown",
-        fatherName: record["fatherName"],
-        motherName: record["motherName"],
-        occupation: record["occupation"],
-        dob: record["dob"],
-        generalAddress: record["generalAddress"],
-        region: record["region"],
-        district: record["district"],
-        upazilaThana: record["upazilaThana"],
-        cityCorp: record["cityCorp"],
-        postOffice: record["postOffice"],
-        postCode: record["postCode"],
-        voterAreaName: record["voterAreaName"],
-        voterAreaNumber: record["voterAreaNumber"],
-        areaCode: record["areaCode"],
-        ward: record["ward"],
-        serialNo: record["serialNo"],
-      });
-      processed++;
+      await db.insert(votersTable).values(records);
+      processed += records.length;
+      failed += chunk.length - records.length;
     } catch (err) {
-      logger.warn({ err, line: i }, "Failed to process CSV row");
-      failed++;
+      // Batch failed — try one-by-one so we salvage good rows
+      for (const record of records) {
+        try {
+          await db.insert(votersTable).values(record);
+          processed++;
+        } catch (rowErr) {
+          logger.warn({ rowErr, voterNo: record.voterNo }, "Row insert failed");
+          failed++;
+        }
+      }
     }
   }
 
   return { processed, failed };
 }
 
-async function processUploadJob(jobId: number, file: Express.Multer.File): Promise<void> {
+async function processUploadJob(
+  jobId: number,
+  filePath: string,
+  originalName: string,
+): Promise<void> {
   try {
-    const ext = path.extname(file.originalname).toLowerCase();
-    let processed = 0;
-    let failed = 0;
+    logger.info({ jobId, originalName }, "Starting file extraction");
+    const rows = await extractRows(filePath, originalName);
+    logger.info({ jobId, rowCount: rows.length }, "Extraction complete, inserting rows");
 
-    if (ext === ".csv") {
-      const result = await processCsvFile(file.path);
-      processed = result.processed;
-      failed = result.failed;
-    } else {
-      logger.info(
-        { filename: file.originalname, ext },
-        "File uploaded for extraction. CSV is auto-processed; PDF/XLSX/DOCX/ZIP require the Python extraction pipeline."
-      );
-    }
+    const { processed, failed } = await batchInsertVoters(rows);
+    logger.info({ jobId, processed, failed }, "Import complete");
 
     await db
       .update(uploadJobsTable)
       .set({ status: "done", recordsProcessed: processed, recordsFailed: failed })
       .where(eq(uploadJobsTable.id, jobId));
   } catch (err) {
-    logger.error({ err }, "Upload processing failed");
+    logger.error({ err, jobId }, "Upload processing failed");
     await db
       .update(uploadJobsTable)
       .set({ status: "failed", errorMessage: String(err) })
@@ -187,6 +132,7 @@ async function processUploadJob(jobId: number, file: Express.Multer.File): Promi
   }
 }
 
+// Single file upload
 router.post("/admin/upload", upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
@@ -198,18 +144,67 @@ router.post("/admin/upload", upload.single("file"), async (req, res): Promise<vo
     .values({ filename: req.file.originalname, status: "processing" })
     .returning();
 
-  // Fire-and-forget background processing
-  processUploadJob(job.id, req.file).catch((err) => {
-    logger.error({ err }, "Background upload processing error");
+  processUploadJob(job.id, req.file.path, req.file.originalname).catch((err) => {
+    logger.error({ err }, "Background upload error");
   });
 
   res.json({
     jobId: job.id,
     status: "processing",
-    message: "File uploaded successfully. Processing has started.",
+    message: "File received. Extraction started in background.",
     recordsProcessed: null,
     recordsFailed: null,
   });
+});
+
+// Multiple files upload (up to 20 at once)
+router.post("/admin/upload-multiple", upload.array("files", 20), async (req, res): Promise<void> => {
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || files.length === 0) {
+    res.status(400).json({ error: "No files uploaded" });
+    return;
+  }
+
+  const jobs = await Promise.all(
+    files.map((file) =>
+      db
+        .insert(uploadJobsTable)
+        .values({ filename: file.originalname, status: "processing" })
+        .returning()
+        .then(([j]) => ({ job: j, file })),
+    ),
+  );
+
+  for (const { job, file } of jobs) {
+    processUploadJob(job.id, file.path, file.originalname).catch((err) => {
+      logger.error({ err, jobId: job.id }, "Background upload error");
+    });
+  }
+
+  res.json({
+    jobs: jobs.map(({ job }) => ({
+      jobId: job.id,
+      filename: job.filename,
+      status: "processing",
+    })),
+    message: `${files.length} file(s) received. Extraction started in background.`,
+  });
+});
+
+// Job status check
+router.get("/admin/uploads/:id", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid job ID" });
+    return;
+  }
+  const [job] = await db.select().from(uploadJobsTable).where(eq(uploadJobsTable.id, id));
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+  res.json(job);
 });
 
 router.get("/admin/uploads", async (_req, res): Promise<void> => {
@@ -217,7 +212,7 @@ router.get("/admin/uploads", async (_req, res): Promise<void> => {
     .select()
     .from(uploadJobsTable)
     .orderBy(desc(uploadJobsTable.createdAt))
-    .limit(50);
+    .limit(100);
   res.json(jobs);
 });
 
