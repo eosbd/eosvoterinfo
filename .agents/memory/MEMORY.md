@@ -1,2 +1,3 @@
 - [Bengali PDF Extraction](bengali-pdf-extraction.md) — BD EC PDFs use SutonnyMJ font; pymupdf + char map + visual-order fix needed; pdftotext produces garbled text.
 - [PDF Extractor Path Resolution](pdf-extractor-path.md) — Python script path must use process.cwd() not __dirname (bundled ESM context breaks __dirname).
+- [Voter Portal Setup Checklist](voter-portal-setup.md) — DB migrations + admin seed must run after fresh deploy; pymupdf must be pip-installed for PDF extraction.

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, count, sql } from "drizzle-orm";
+import { eq, ilike, and, or, count, sql } from "drizzle-orm";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
@@ -115,8 +115,9 @@ router.get("/admin/voters", async (req, res): Promise<void> => {
   }
   if (search) {
     conditions.push(
-      and(
-        ilike(votersTable.name, `%${search}%`)
+      or(
+        ilike(votersTable.name, `%${search}%`),
+        ilike(votersTable.voterNo, `%${search}%`)
       )
     );
   }

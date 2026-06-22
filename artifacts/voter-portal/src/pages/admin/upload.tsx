@@ -127,6 +127,7 @@ export default function AdminUpload() {
         const res = await fetch("/api/admin/upload", {
           method: "POST",
           body: formData,
+          credentials: "include",
         });
         if (res.ok) {
           const data = await res.json();

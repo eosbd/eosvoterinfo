@@ -14,7 +14,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, error, setLocation]);
 
-  if (isLoading) return <div className="p-10 text-center">Loading Admin...</div>;
+  if (isLoading) return <div className="p-10 text-center font-bengali">লোড হচ্ছে...</div>;
   if (!user) return null;
 
   const handleLogout = () => {
@@ -30,24 +30,30 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <div className="p-6 border-b bg-sidebar-primary text-sidebar-primary-foreground">
           <h2 className="font-bold text-xl flex items-center gap-2">
             <div className="w-8 h-8 bg-white/20 rounded flex items-center justify-center text-sm">BD</div>
-            Admin Portal
+            <span className="font-bengali">অ্যাডমিন পোর্টাল</span>
           </h2>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <Link href="/admin">
-            <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">Dashboard</Button>
+            <Button variant="ghost" className="w-full justify-start font-bengali hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+              📊 ড্যাশবোর্ড
+            </Button>
           </Link>
           <Link href="/admin/voters">
-            <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">Manage Voters</Button>
+            <Button variant="ghost" className="w-full justify-start font-bengali hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+              👥 ভোটার পরিচালনা
+            </Button>
           </Link>
           <Link href="/admin/upload">
-            <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">Upload Data</Button>
+            <Button variant="ghost" className="w-full justify-start font-bengali hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+              📂 ডেটা আপলোড
+            </Button>
           </Link>
         </nav>
         <div className="p-4 border-t">
-          <div className="text-sm text-muted-foreground mb-4 px-2">Logged in as {user.username}</div>
-          <Button variant="outline" className="w-full justify-start text-destructive" onClick={handleLogout}>
-            Logout
+          <div className="text-sm text-muted-foreground mb-4 px-2 font-bengali">লগইন: {user.username}</div>
+          <Button variant="outline" className="w-full justify-start text-destructive font-bengali" onClick={handleLogout}>
+            লগআউট
           </Button>
         </div>
       </aside>
@@ -57,7 +63,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <header className="h-16 border-b bg-card flex items-center px-6 sticky top-0 z-10">
           <div className="ml-auto">
             <Link href="/">
-              <Button variant="ghost" className="font-bengali">Public Portal ↗</Button>
+              <Button variant="ghost" className="font-bengali">পাবলিক পোর্টাল ↗</Button>
             </Link>
           </div>
         </header>
