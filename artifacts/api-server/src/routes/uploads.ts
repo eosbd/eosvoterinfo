@@ -68,6 +68,7 @@ async function extractRows(filePath: string, originalName: string): Promise<Reco
 /** Insert rows in batches of 200 for performance */
 async function batchInsertVoters(
   rows: Record<string, string>[],
+  uploadJobId: number,
 ): Promise<{ processed: number; failed: number }> {
   let processed = 0;
   let failed = 0;
@@ -77,7 +78,8 @@ async function batchInsertVoters(
     const chunk = rows.slice(i, i + BATCH);
     const records = chunk
       .map((r) => buildVoterRecord(r))
-      .filter((r): r is NonNullable<typeof r> => r !== null);
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .map((r) => ({ ...r, uploadJobId }));
 
     if (records.length === 0) {
       failed += chunk.length;
@@ -115,7 +117,7 @@ async function processUploadJob(
     const rows = await extractRows(filePath, originalName);
     logger.info({ jobId, rowCount: rows.length }, "Extraction complete, inserting rows");
 
-    const { processed, failed } = await batchInsertVoters(rows);
+    const { processed, failed } = await batchInsertVoters(rows, jobId);
     logger.info({ jobId, processed, failed }, "Import complete");
 
     await db

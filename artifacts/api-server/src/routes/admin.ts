@@ -137,7 +137,7 @@ router.get("/admin/voters", async (req, res): Promise<void> => {
   res.json({ voters, total, page: page ?? 1, limit: limit ?? 50 });
 });
 
-// Delete an upload job record
+// Delete an upload job record AND all its associated voter data
 router.delete("/admin/uploads/:id", async (req, res): Promise<void> => {
   const adminId = (req.session as any).adminId;
   if (!adminId) { res.status(401).json({ error: "Not authenticated" }); return; }
@@ -145,9 +145,17 @@ router.delete("/admin/uploads/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const [deleted] = await db.delete(uploadJobsTable).where(eq(uploadJobsTable.id, id)).returning();
-  if (!deleted) { res.status(404).json({ error: "Upload not found" }); return; }
-  res.sendStatus(204);
+  const [job] = await db.select().from(uploadJobsTable).where(eq(uploadJobsTable.id, id));
+  if (!job) { res.status(404).json({ error: "Upload not found" }); return; }
+
+  // Delete all voters imported from this job
+  const deleted = await db.delete(votersTable).where(eq(votersTable.uploadJobId, id)).returning({ id: votersTable.id });
+  logger.info({ uploadJobId: id, votersDeleted: deleted.length }, "Deleted voters for upload job");
+
+  // Delete the job record itself
+  await db.delete(uploadJobsTable).where(eq(uploadJobsTable.id, id));
+
+  res.json({ success: true, votersDeleted: deleted.length });
 });
 
 // Reprocess all stored ZIPs with the corrected Bengali extractor
@@ -181,6 +189,9 @@ router.post("/admin/reprocess", async (req, res): Promise<void> => {
 
   logger.info({ zipFiles }, "Starting reprocess of all ZIPs");
 
+  // Fetch all upload job records so we can match ZIPs → jobId
+  const allJobs = await db.select().from(uploadJobsTable);
+
   // Clear existing voter data
   await db.delete(votersTable);
   logger.info("Cleared existing voter records");
@@ -191,6 +202,20 @@ router.post("/admin/reprocess", async (req, res): Promise<void> => {
   for (const zipPath of zipFiles) {
     try {
       logger.info({ zipPath }, "Reprocessing ZIP");
+
+      // Match this ZIP file to its upload_job record by filename
+      const zipBasename = path.basename(zipPath);
+      const matchedJob = allJobs.find((j) => zipPath.includes(j.filename) || zipBasename.includes(j.filename) || j.filename === zipBasename);
+      let uploadJobId: number | null = matchedJob?.id ?? null;
+
+      // If no job record found, create one so delete works in the future
+      if (!uploadJobId) {
+        const originalName = zipBasename.replace(/^\d+-\d+-/, "");
+        const [newJob] = await db.insert(uploadJobsTable).values({ filename: originalName, status: "done" }).returning();
+        uploadJobId = newJob.id;
+        logger.info({ zipPath, uploadJobId }, "Created missing upload job record");
+      }
+
       const rows = await extractRowsFromZipFile(zipPath);
       logger.info({ zipPath, rows: rows.length }, "ZIP extraction complete");
 
@@ -202,6 +227,7 @@ router.post("/admin/reprocess", async (req, res): Promise<void> => {
         const batch = records.slice(i, i + BATCH_SIZE);
         await db.insert(votersTable).values(
           batch.map((r) => ({
+            uploadJobId,
             voterNo: r.voterNo,
             name: r.name,
             fatherName: r.fatherName,
