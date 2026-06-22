@@ -115,17 +115,24 @@ def fix_visual_order(text):
     """
     Pre-base vowel signs appear BEFORE their base consonant in visual/PDF order.
     Move them AFTER the consonant (Unicode logical order).
-      ি (U+09BF) + C  →  C + ি
-      ে (U+09CB) + C  →  C + ে
-      ৈ (U+09C8) + C  →  C + ৈ
+      ি  (U+09BF) + C  →  C + ি
+      ে  (U+09C7) + C  →  C + ে
+      ৈ  (U+09C8) + C  →  C + ৈ
+
+    Then fix compound vowel marks that only form correctly after reordering:
+      ে (U+09C7) + া (U+09BE)  →  ো (U+09CB)   [o-matra]
+      ৈ (U+09C8) + া (U+09BE)  →  ৌ (U+09CC)   [ou-matra]
     """
     I_MARK  = "\u09bf"   # ি
-    E_MARK  = "\u09cb"   # ে
+    E_MARK  = "\u09c7"   # ে  (e-matra, pre-base in visual order)
     AI_MARK = "\u09c8"   # ৈ
     PAT = _BN_CONS_RE.pattern
     text = re.sub(I_MARK  + "(" + PAT + ")", lambda m: m.group(1) + I_MARK,  text)
     text = re.sub(E_MARK  + "(" + PAT + ")", lambda m: m.group(1) + E_MARK,  text)
     text = re.sub(AI_MARK + "(" + PAT + ")", lambda m: m.group(1) + AI_MARK, text)
+    # After reordering, ে+া forms ো and ৈ+া forms ৌ
+    text = text.replace("\u09c7\u09be", "\u09cb")   # ে + া → ো
+    text = text.replace("\u09c8\u09be", "\u09cc")   # ৈ + া → ৌ
     return text
 
 

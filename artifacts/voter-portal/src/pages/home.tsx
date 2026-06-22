@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,14 +15,28 @@ const searchSchema = z.object({
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      if (currentY < 60) {
+        setHeaderVisible(true);
+      } else if (currentY > lastScrollY.current + 10) {
+        setHeaderVisible(false);
+      } else if (currentY < lastScrollY.current - 5) {
+        setHeaderVisible(true);
+      }
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const form = useForm<z.infer<typeof searchSchema>>({
     resolver: zodResolver(searchSchema),
-    defaultValues: {
-      voterNo: "",
-      name: "",
-      district: "",
-    },
+    defaultValues: { voterNo: "", name: "", district: "" },
   });
 
   function onSubmit(values: z.infer<typeof searchSchema>) {
@@ -30,18 +44,21 @@ export default function Home() {
     if (values.voterNo) params.set("voterNo", values.voterNo);
     if (values.name) params.set("name", values.name);
     if (values.district) params.set("district", values.district);
-    
     setLocation(`/search?${params.toString()}`);
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b bg-card py-4 px-6 flex justify-between items-center shadow-sm">
+      <header
+        className={`border-b bg-card py-4 px-6 flex justify-between items-center shadow-sm sticky top-0 z-50 transition-transform duration-300 ${
+          headerVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
             BD
           </div>
-          <h1 className="text-xl font-bold text-foreground">বাংলাদেশ ভোটার পোর্টাল</h1>
+          <h1 className="text-xl font-bold text-foreground font-bengali">বাংলাদেশ ভোটার পোর্টাল</h1>
         </div>
         <Link href="/admin/login">
           <Button variant="outline" className="font-bengali">অ্যাডমিন লগইন</Button>
@@ -115,7 +132,7 @@ export default function Home() {
           </div>
         </div>
       </main>
-      
+
       <footer className="py-6 text-center text-sm text-muted-foreground border-t bg-card">
         <p className="font-bengali">© ২০২৫ বাংলাদেশ নির্বাচন কমিশন। সর্বস্বত্ব সংরক্ষিত।</p>
       </footer>

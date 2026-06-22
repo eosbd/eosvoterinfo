@@ -137,6 +137,19 @@ router.get("/admin/voters", async (req, res): Promise<void> => {
   res.json({ voters, total, page: page ?? 1, limit: limit ?? 50 });
 });
 
+// Delete an upload job record
+router.delete("/admin/uploads/:id", async (req, res): Promise<void> => {
+  const adminId = (req.session as any).adminId;
+  if (!adminId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [deleted] = await db.delete(uploadJobsTable).where(eq(uploadJobsTable.id, id)).returning();
+  if (!deleted) { res.status(404).json({ error: "Upload not found" }); return; }
+  res.sendStatus(204);
+});
+
 // Reprocess all stored ZIPs with the corrected Bengali extractor
 router.post("/admin/reprocess", async (req, res): Promise<void> => {
   const adminId = (req.session as any).adminId;

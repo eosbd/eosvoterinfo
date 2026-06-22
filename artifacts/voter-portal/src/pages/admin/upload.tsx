@@ -160,6 +160,21 @@ export default function AdminUpload() {
     }
   }, [pollJob, toast]);
 
+  const handleDeleteUpload = useCallback(async (id: number, filename: string) => {
+    if (!confirm(`"${filename}" — এই আপলোড রেকর্ড মুছে ফেলবেন?`)) return;
+    try {
+      const res = await fetch(`/api/admin/uploads/${id}`, { method: "DELETE", credentials: "include" });
+      if (res.ok || res.status === 204) {
+        toast({ title: "আপলোড রেকর্ড মুছে ফেলা হয়েছে" });
+        queryClient.invalidateQueries({ queryKey: getListUploadsQueryKey() });
+      } else {
+        toast({ title: "মুছতে ব্যর্থ হয়েছে", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "নেটওয়ার্ক ত্রুটি", variant: "destructive" });
+    }
+  }, [queryClient, toast]);
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -318,6 +333,7 @@ export default function AdminUpload() {
                   <TableHead>প্রক্রিয়াকৃত</TableHead>
                   <TableHead>ব্যর্থ</TableHead>
                   <TableHead>তারিখ</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -349,6 +365,16 @@ export default function AdminUpload() {
                       <TableCell className="font-mono">{job.recordsFailed ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                         {new Date(job.createdAt).toLocaleString("bn-BD")}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 px-2 text-xs font-bengali"
+                          onClick={() => handleDeleteUpload(job.id, job.filename)}
+                        >
+                          মুছুন
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
