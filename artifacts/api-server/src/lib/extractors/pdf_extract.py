@@ -38,7 +38,7 @@ CHAR_MAP = {
     "\u0181": "\u09b0\u09c1",       # Ɓ  → রু   (ru, পুরুষ)
     "\u0180": "\u09b0",             # ƀ  → র    (ra)
     "\u0183": "\u09ac\u09c1",       # ƃ  → বু   (bu)
-    "\u01a3": "\u09b6",             # ƣ  → শ    (sha)
+    "\u01a3": "\u0995",             # ƣ  → ক    (ka — চাকরি, কুটির; was wrongly শ)
     "\u015b": "\u09b6",             # ś  → শ    (sha)
     "\u0144": "\u0982",             # ń  → ং    (anusvara)
     "\u017f": "\u09a8\u09cd\u09a4", # ſ  → ন্ত  (nt)
@@ -50,12 +50,12 @@ CHAR_MAP = {
     "\u0133": "\u09dc",             # ĳ  → ড়
     "\u012f": "\u099c\u09cd\u099e", # į  → জ্ঞ  (gn conjunct)
     "\u0184": "\u09ac\u09cd\u09af", # Ƅ  → ব্য  (bya)
-    "\u0158": "\u09cd\u09b0",       # Ř  → ্র   (ra-phala)
-    "\u0159": "\u09cd\u09b0",       # ř  → ্র
+    "\u0158": "\u09b6\u09cd\u09b0", # Ř  → শ্র  (shra — শ্রমিক; was wrongly just ্র)
+    "\u0159": "\u09b6\u09cd\u09b0", # ř  → শ্র  (shra variant)
     "\u0147": "\u09ae\u09cd\u09ae", # Ň  → ম্ম  (mm, মোহাম্মদ) — was wrongly ণ্ড
     "\u015e": "\u09b7",             # Ş  → ষ    (retroflex sha)
     "\u015f": "\u09b7",             # ş  → ষ
-    "\xfb": "\u0985",              # û  → অ
+    "\xfb": "\u099e\u09cd\u099a",  # û  → ঞ্চ  (ncha — অঞ্চল; was wrongly অ)
     "\xd7": "\u0995\u09cd\u09a4",  # ×  → ক্ত  (kta, ডাক্তার) — was wrongly ক্ষ
     "\xd9": "\u0995\u09cd\u09b7",  # Ù  → ক্ষ  (ksha, শিক্ষক)
     "\xc1": "\u0995\u09cd\u09b7",  # Á  → ক্ষ  (ksha variant)
@@ -64,13 +64,47 @@ CHAR_MAP = {
     "\u0160": "\u09b6",             # Š  → শ    (sha, alternate position)
     "\u015a": "\u09b6",             # Ś  → শ    (sha, alternate position)
     "\u0161": "\u09b6\u09cd\u09b0", # š  → শ্র  (shra, শ্রমিক)
+    "\u0114": "\u09a4\u09cd\u09b0", # Ĕ  → ত্র  (tra — ছাত্র, চিত্রকর; was missing)
     "\u0148": "\u099e\u09cd\u099a", # ň  → ঞ্চ  (ncha)
     "\u014b": "\u09ae\u09cd\u09aa", # ŋ  → ম্প  (mpa)
     "\u013e": "\u09b2\u09cd\u0995", # ľ  → ল্ক  (lka)
     "\u0137": "\u0995\u09cd\u09a4", # ķ  → ক্ত  (kta, alternate)
     "\u0135": "\u099c\u09cd\u09ac", # ĵ  → জ্ব  (jba)
+    "\u0130": "\u09aa\u09cd\u09a4", # İ  → প্ত  (pta — অবসরপ্রাপ্ত)
+    "\u0103": "\u09a1\u09cd\u09b0", # ă  → ড্র  (dra — ড্রাইভার; U+0103 not U+0102)
+    "\u00d4": "\u0995\u09cd\u09b8", # Ô  → ক্স  (ksa — রিক্সা)
+    "\u0186": "\u09b9\u09c1",       # Ɔ  → হু   (hu — হুমায়ুন)
+    "\u00d8": "\u0995\u09cd\u09b0", # Ø  → ক্র  (kra — চক্রবর্তী)
+    "\u00ea": "\u0999\u09cd\u0997", # ê  → ঙ্গ  (nga — জাহাঙ্গীর, গঙ্গা)
+    "\u00e8": "\u0999\u09cd\u0995", # è  → ঙ্ক  (ngk — শঙ্কর, বঙ্কিম)
+    "\u0145": "\u0999\u09cd\u0995", # Ņ  → ঙ্ক  (ngk alt — শঙ্কু নাথ)
+    "\u00f5": "\u099c\u09cd\u099c", # õ  → জ্জ  (jj — মোয়াজ্জেম, রাজ্জাক)
+    "\u00e5": "\u0997\u09cd\u09b0", # å  → গ্র  (gra — মাইগ্রেট)
+    "\u0113": "\u09a4\u09cd\u09a4", # ē  → ত্ত  (tt — উত্তম, সাত্তার)
+    "\u011b": "\u09a6",             # ě  → দ    (da — জগদীশ, দীরেন্দ্র)
+    "\u0124": "\u09a8\u09cd\u09a6", # Ĥ  → ন্দ  (nd — গোবিন্দ, চন্দন)
+    "\u013d": "\u09ac\u09cd\u09b0", # Ľ  → ব্র  (bra — ইব্রাহীম, ব্রাঞ্চ)
+    "\u0150": "\u09b2\u09cd\u09aa", # Ő  → ল্প  (lpa — কল্পনা)
+    "\u015d": "\u09b7\u09cd\u09a3", # ŝ  → ষ্ণ  (sna — কৃষ্ণ, বিষ্ণু)
+    "\u0169": "\u09b8\u09cd\u09a4", # ũ  → স্ত  (sta — মোস্তফা)
+    "\u016b": "\u09b8\u09cd\u09a8", # ū  → স্ন  (sna — জ্যোৎস্না)
+    "\u016e": "\u09b8\u09cd\u09ac", # Ů  → স্ব  (svā — সরস্বতী, স্বপন)
+    "\u0171": "\u09b8\u09cd\u09a4\u09cd\u09b0", # ű → স্ত্র (stra — মিস্ত্রী)
+    "\u0185": "\u0989",             # ƅ  → উ    (u — উদয়, উত্তম)
+    "\u00fa": "\u099c\u09cd\u09ac", # ú  → জ্ব  (jva — আলহাজ্ব)
+    "\u00d0": "\u09c8",             # Ð  → ৈ    (ai-matra pre-base: সৈয়দ, খৈয়াম)
+    "\u00ff": "\u099f\u09cd\u099f", # ÿ  → ট্ট  (tt — ভট্টাচার্য)
+    "\u00da": "\u0995\u09cd\u09b7\u09cd\u09ae", # Ú → ক্ষ্ম (ksma — লক্ষ্মী)
+    "\u00f8": "\u099c\u09cd\u099e", # ø  → জ্ঞ  (gna — জ্ঞানেন্দ্র)
+    "\u011a": "\u09a6\u09cd\u09ae", # Ě  → দ্ম  (dma — পদ্মা)
+    "\u011c": "\u09a6\u09cd\u09a7", # Ĝ  → দ্ধ  (ddha — মুক্তিযোদ্ধা)
+    "\u0129": "\u09a8\u09cd\u09b8", # ĩ  → ন্স  (ns — মুন্সী)
+    "\u0142": "\u09a7",             # ł  → ধ    (dha — সুধা)
+    "\u018f": "\u09a8\u09cd\u09a7\u09c1", # Ə → ন্ধু (ndhu — দীনবন্ধু)
     "\x8c": "",                     # control char → remove
     "\x8d": "",                     # control char → remove
+    "\x8e": "",                     # control char → remove
+    "\x98": "",                     # control char → remove
 }
 
 # Bengali consonant set for vowel reordering
@@ -120,6 +154,27 @@ def fix_suton_chars(text):
     return text
 
 
+def fix_reph_position(text):
+    """
+    In SutonnyMJ visual encoding, the reph marker Î (U+00CE) appears AFTER
+    the consonant cluster it belongs to.  In Unicode logical order, র্
+    (ra + virama) must come BEFORE the cluster.
+
+    Pattern (applied before fix_suton_chars so Î is still the raw glyph):
+      (consonant cluster) + Î  →  র্ + (consonant cluster)
+
+    Example:  বÎা  →  র্বা  (giving নির্বাচন from িনবÎাচন)
+    """
+    CONS_BASE = r"[\u0995-\u09b9\u09dc-\u09df\u09f0\u09f1]"
+    CLUSTER   = CONS_BASE + r"(?:\u09cd" + CONS_BASE + r")*"
+    text = re.sub(
+        r"(" + CLUSTER + r")\xce",
+        "\u09b0\u09cd" + r"\1",   # র্ + cluster
+        text,
+    )
+    return text
+
+
 def fix_visual_order(text):
     """
     Pre-base vowel signs appear BEFORE their base consonant in visual/PDF order.
@@ -151,9 +206,16 @@ def fix_visual_order(text):
 
 
 def clean_text(text):
-    text = fix_visual_order(text)  # First: fix ি/ে/ৈ positioning from PDF visual layout
-    text = fix_pre_base_e(text)   # Then: Ï → ো/ে (already in correct position, won't re-shuffle)
-    text = fix_suton_chars(text)  # Then: replace conjunct glyphs
+    # Order matters:
+    # 1. Move Î reph before its cluster (while clusters are still raw Unicode consonants)
+    text = fix_reph_position(text)
+    # 2. Replace ALL SutonnyMJ conjunct glyphs → Unicode Bengali
+    #    (must happen BEFORE fix_visual_order so ি/ে can match full Unicode clusters)
+    text = fix_suton_chars(text)
+    # 3. Now all consonant clusters are Unicode — reorder pre-base vowels correctly
+    text = fix_visual_order(text)
+    # 4. Handle Ï (pre-base ো/ে marker) last — it uses single Bengali consonants
+    text = fix_pre_base_e(text)
     text = re.sub(r"[ \t]+", " ", text)
     return text
 
