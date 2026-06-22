@@ -1,4 +1,12 @@
 @font-face {
+  font-family: 'SolaimanLipi';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SolaimanLipi.woff2') format('woff2'),
+       url('/fonts/SolaimanLipi.ttf') format('truetype');
+}
+@font-face {
   font-family: 'Noto Sans Bengali';
   font-style: normal;
   font-weight: 400;
@@ -131,9 +139,9 @@
   --chart-4: 180 50% 50%;
   --chart-5: 140 40% 55%;
 
-  --app-font-sans: 'Noto Sans Bengali', sans-serif;
-  --app-font-bengali: 'Noto Sans Bengali', sans-serif;
-  --app-font-serif: 'Noto Sans Bengali', Georgia, serif;
+  --app-font-sans: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+  --app-font-bengali: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+  --app-font-serif: 'Hind Siliguri', 'Noto Sans Bengali', Georgia, serif;
   --app-font-mono: Menlo, monospace;
   
   --radius: 0.5rem;
@@ -190,12 +198,12 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Noto Sans', sans-serif;
+    font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
   }
   .font-bengali {
-    font-family: 'SolaimanLipi', 'Noto Sans Bengali', sans-serif !important;
+    font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif !important;
   }
   input, textarea, select, button {
-    font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Noto Sans', sans-serif;
+    font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
   }
 }
