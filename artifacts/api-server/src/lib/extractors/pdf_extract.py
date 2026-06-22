@@ -52,14 +52,23 @@ CHAR_MAP = {
     "\u0184": "\u09ac\u09cd\u09af", # Ƅ  → ব্য  (bya)
     "\u0158": "\u09cd\u09b0",       # Ř  → ্র   (ra-phala)
     "\u0159": "\u09cd\u09b0",       # ř  → ্র
-    "\u0147": "\u09a3\u09cd\u09a1", # Ň  → ণ্ড  (nd)
+    "\u0147": "\u09ae\u09cd\u09ae", # Ň  → ম্ম  (mm, মোহাম্মদ) — was wrongly ণ্ড
     "\u015e": "\u09b7",             # Ş  → ষ    (retroflex sha)
     "\u015f": "\u09b7",             # ş  → ষ
     "\xfb": "\u0985",              # û  → অ
-    "\xd7": "\u0995\u09cd\u09b7",  # ×  → ক্ষ  (ksha)
-    "\xc1": "\u0995\u09cd\u09b7",  # Á  → ক্ষ
+    "\xd7": "\u0995\u09cd\u09a4",  # ×  → ক্ত  (kta, ডাক্তার) — was wrongly ক্ষ
+    "\xd9": "\u0995\u09cd\u09b7",  # Ù  → ক্ষ  (ksha, শিক্ষক)
+    "\xc1": "\u0995\u09cd\u09b7",  # Á  → ক্ষ  (ksha variant)
     "\u012e": "\u0997\u09cd",       # Į  → গ্
     "\u0139": "\u09b2\u09cd\u09b2", # Ĺ  → ল্ল (ll)
+    "\u0160": "\u09b6",             # Š  → শ    (sha, alternate position)
+    "\u015a": "\u09b6",             # Ś  → শ    (sha, alternate position)
+    "\u0161": "\u09b6\u09cd\u09b0", # š  → শ্র  (shra, শ্রমিক)
+    "\u0148": "\u099e\u09cd\u099a", # ň  → ঞ্চ  (ncha)
+    "\u014b": "\u09ae\u09cd\u09aa", # ŋ  → ম্প  (mpa)
+    "\u013e": "\u09b2\u09cd\u0995", # ľ  → ল্ক  (lka)
+    "\u0137": "\u0995\u09cd\u09a4", # ķ  → ক্ত  (kta, alternate)
+    "\u0135": "\u099c\u09cd\u09ac", # ĵ  → জ্ব  (jba)
     "\x8c": "",                     # control char → remove
     "\x8d": "",                     # control char → remove
 }
@@ -114,10 +123,13 @@ def fix_suton_chars(text):
 def fix_visual_order(text):
     """
     Pre-base vowel signs appear BEFORE their base consonant in visual/PDF order.
-    Move them AFTER the consonant (Unicode logical order).
-      ি  (U+09BF) + C  →  C + ি
-      ে  (U+09C7) + C  →  C + ে
-      ৈ  (U+09C8) + C  →  C + ৈ
+    Move them AFTER the full consonant cluster (Unicode logical order).
+      ি  (U+09BF) + C(্C)*  →  C(্C)* + ি
+      ে  (U+09C7) + C(্C)*  →  C(্C)* + ে
+      ৈ  (U+09C8) + C(্C)*  →  C(্C)* + ৈ
+
+    Handles clusters like দ্দ, ক্ত, ম্ম so that:
+      উিদ্দন → উদ্দিন  (not উদিদ্দন)
 
     Then fix compound vowel marks that only form correctly after reordering:
       ে (U+09C7) + া (U+09BE)  →  ো (U+09CB)   [o-matra]
@@ -126,10 +138,12 @@ def fix_visual_order(text):
     I_MARK  = "\u09bf"   # ি
     E_MARK  = "\u09c7"   # ে  (e-matra, pre-base in visual order)
     AI_MARK = "\u09c8"   # ৈ
-    PAT = _BN_CONS_RE.pattern
-    text = re.sub(I_MARK  + "(" + PAT + ")", lambda m: m.group(1) + I_MARK,  text)
-    text = re.sub(E_MARK  + "(" + PAT + ")", lambda m: m.group(1) + E_MARK,  text)
-    text = re.sub(AI_MARK + "(" + PAT + ")", lambda m: m.group(1) + AI_MARK, text)
+    # Match a full consonant cluster: C followed by zero or more (্ + C)
+    CONS_BASE = r"[\u0995-\u09b9\u09dc-\u09df\u09f0\u09f1]"
+    CLUSTER   = r"(" + CONS_BASE + r"(?:\u09cd" + CONS_BASE + r")*)"
+    text = re.sub(I_MARK  + CLUSTER, lambda m: m.group(1) + I_MARK,  text)
+    text = re.sub(E_MARK  + CLUSTER, lambda m: m.group(1) + E_MARK,  text)
+    text = re.sub(AI_MARK + CLUSTER, lambda m: m.group(1) + AI_MARK, text)
     # After reordering, ে+া forms ো and ৈ+া forms ৌ
     text = text.replace("\u09c7\u09be", "\u09cb")   # ে + া → ো
     text = text.replace("\u09c8\u09be", "\u09cc")   # ৈ + া → ৌ
