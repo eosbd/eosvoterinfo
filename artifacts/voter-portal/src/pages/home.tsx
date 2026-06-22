@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Navbar } from "@/components/layout/navbar";
 
 const searchSchema = z.object({
   voterNo: z.string().optional(),
@@ -15,24 +15,6 @@ const searchSchema = z.object({
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const [headerVisible, setHeaderVisible] = useState(true);
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const currentY = window.scrollY;
-      if (currentY < 60) {
-        setHeaderVisible(true);
-      } else if (currentY > lastScrollY.current + 10) {
-        setHeaderVisible(false);
-      } else if (currentY < lastScrollY.current - 5) {
-        setHeaderVisible(true);
-      }
-      lastScrollY.current = currentY;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const form = useForm<z.infer<typeof searchSchema>>({
     resolver: zodResolver(searchSchema),
@@ -49,21 +31,18 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header
-        className={`border-b bg-card py-4 px-6 flex justify-between items-center shadow-sm sticky top-0 z-50 transition-transform duration-300 ${
-          headerVisible ? "translate-y-0" : "-translate-y-full"
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
-            BD
-          </div>
-          <h1 className="text-xl font-bold text-foreground font-bengali">বাংলাদেশ ভোটার পোর্টাল</h1>
-        </div>
-        <Link href="/admin/login">
-          <Button variant="outline" className="font-bengali">অ্যাডমিন লগইন</Button>
-        </Link>
-      </header>
+      <Navbar
+        title="বাংলাদেশ ভোটার পোর্টাল"
+        rightContent={
+          <Link href="/admin/login">
+            <Button variant="outline" className="font-bengali w-full">অ্যাডমিন লগইন</Button>
+          </Link>
+        }
+        menuItems={[
+          { label: "🏠 হোম", href: "/" },
+          { label: "🔐 অ্যাডমিন লগইন", href: "/admin/login" },
+        ]}
+      />
 
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="max-w-xl w-full space-y-8">

@@ -2,6 +2,7 @@ import { useRoute, Link } from "wouter";
 import { useGetVoter, getGetVoterQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/layout/navbar";
 
 export default function VoterProfile() {
   const [, params] = useRoute("/voter/:id");
@@ -21,14 +22,20 @@ export default function VoterProfile() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b bg-primary text-primary-foreground py-4 px-6 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" className="text-primary-foreground border-primary-foreground/20 hover:bg-primary-foreground/10 font-bengali">← হোম</Button>
-          </Link>
-          <h1 className="text-xl font-bold font-bengali">ভোটার বিস্তারিত তথ্য</h1>
-        </div>
-      </header>
+      <Navbar
+        leftContent={
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="ghost" className="font-bengali">← হোম</Button>
+            </Link>
+            <h1 className="text-xl font-bold font-bengali">ভোটার বিস্তারিত তথ্য</h1>
+          </div>
+        }
+        menuItems={[
+          { label: "🏠 হোম", href: "/" },
+          { label: "🔐 অ্যাডমিন লগইন", href: "/admin/login" },
+        ]}
+      />
 
       <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-6">
         
