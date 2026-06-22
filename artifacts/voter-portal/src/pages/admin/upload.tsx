@@ -33,23 +33,53 @@ interface UploadingFile {
   error?: string;
 }
 
+interface PreviewResult {
+  filename: string;
+  totalRaw: number;
+  totalMapped: number;
+  sampleRawRows: Record<string, string>[];
+  sampleMappedRows: Record<string, string>[];
+  message: string;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  voterNo: "ভোটার নং",
+  name: "নাম",
+  fatherName: "পিতা",
+  motherName: "মাতা",
+  district: "জেলা",
+  upazilaThana: "উপজেলা/থানা",
+  ward: "ওয়ার্ড",
+  generalAddress: "ঠিকানা",
+  occupation: "পেশা",
+  dob: "জন্ম তারিখ",
+  serialNo: "ক্রমিক",
+  region: "অঞ্চল",
+  postOffice: "ডাকঘর",
+  postCode: "পোস্টকোড",
+  voterAreaName: "ভোটার এলাকার নাম",
+  voterAreaNumber: "ভোটার এলাকার নং",
+};
+
 export default function AdminUpload() {
   const { data: uploads, isLoading } = useListUploads({
-    query: { refetchInterval: 3000 }, // Poll every 3s for live status
+    query: { refetchInterval: 3000 },
   });
   const [dropping, setDropping] = useState(false);
   const [activeUploads, setActiveUploads] = useState<UploadingFile[]>([]);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewInputRef = useRef<HTMLInputElement>(null);
   const pollTimers = useRef<Record<number, ReturnType<typeof setInterval>>>({});
 
-  // Poll a specific job until it finishes
   const pollJob = useCallback((jobId: number, fileName: string) => {
     if (pollTimers.current[jobId]) return;
     pollTimers.current[jobId] = setInterval(async () => {
       try {
-        const res = await fetch(`/api/admin/uploads/${jobId}`);
+        const res = await fetch(`/api/admin/uploads/${jobId}`, { credentials: "include" });
         if (!res.ok) return;
         const job = await res.json();
         setActiveUploads((prev) =>
@@ -98,7 +128,6 @@ export default function AdminUpload() {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    // Validate extensions
     const invalid = fileArray.filter(
       (f) => !ACCEPTED.some((ext) => f.name.toLowerCase().endsWith(ext)),
     );
@@ -111,7 +140,6 @@ export default function AdminUpload() {
       return;
     }
 
-    // Add to active list immediately
     const newUploads: UploadingFile[] = fileArray.map((f) => ({
       name: f.name,
       size: f.size,
@@ -119,7 +147,6 @@ export default function AdminUpload() {
     }));
     setActiveUploads((prev) => [...newUploads, ...prev]);
 
-    // Upload each file individually
     for (const file of fileArray) {
       const formData = new FormData();
       formData.append("file", file);
@@ -161,6 +188,31 @@ export default function AdminUpload() {
     }
   }, [pollJob, toast]);
 
+  const handlePreviewFile = useCallback(async (file: File) => {
+    setPreview(null);
+    setPreviewLoading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/admin/upload-preview", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "সার্ভার ত্রুটি" }));
+        toast({ title: "পূর্বরূপ ব্যর্থ", description: err.error, variant: "destructive" });
+        return;
+      }
+      const data: PreviewResult = await res.json();
+      setPreview(data);
+    } catch {
+      toast({ title: "নেটওয়ার্ক ত্রুটি", variant: "destructive" });
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [toast]);
+
   const handleDeleteUpload = useCallback(async (id: number, filename: string) => {
     if (!confirm(`"${filename}" — এই আপলোড রেকর্ড মুছে ফেলবেন?`)) return;
     try {
@@ -189,11 +241,16 @@ export default function AdminUpload() {
     e.preventDefault();
     setDropping(true);
   };
-
   const handleDragLeave = () => setDropping(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) uploadFiles(e.target.files);
+    e.target.value = "";
+  };
+
+  const handlePreviewInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handlePreviewFile(file);
     e.target.value = "";
   };
 
@@ -203,13 +260,7 @@ export default function AdminUpload() {
   };
 
   const progressIcon = (p: UploadingFile["progress"]) => {
-    if (p === "uploading") return (
-      <svg className="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-      </svg>
-    );
-    if (p === "processing") return (
+    if (p === "uploading" || p === "processing") return (
       <svg className="animate-spin w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
@@ -233,9 +284,122 @@ export default function AdminUpload() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">ফাইল আপলোড</h1>
           <p className="text-muted-foreground mt-1">
-            ভোটার তথ্য সহ ZIP, PDF, XLSX, DOCX, CSV ফাইল আপলোড করুন — বাংলা এনকোডিং স্বয়ংক্রিয়ভাবে সংশোধন হবে।
+            ভোটার তথ্য সহ ZIP, PDF, XLSX, DOCX, CSV ফাইল আপলোড করুন।
           </p>
         </div>
+
+        {/* Preview Tool */}
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              পূর্বরূপ পরীক্ষা করুন (DB-তে save হবে না)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              আপলোড করার আগে দেখুন বাংলা ঠিকমতো extract হচ্ছে কিনা।
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="border-amber-300 hover:bg-amber-100"
+              onClick={() => previewInputRef.current?.click()}
+              disabled={previewLoading}
+            >
+              {previewLoading ? (
+                <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+              )}
+              {previewLoading ? "প্রক্রিয়াকরণ হচ্ছে..." : "ফাইল বেছে পূর্বরূপ দেখুন"}
+            </Button>
+            <input
+              ref={previewInputRef}
+              type="file"
+              className="hidden"
+              accept={ACCEPTED.join(",")}
+              onChange={handlePreviewInputChange}
+            />
+
+            {preview && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-semibold text-sm">{preview.filename}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-xs font-semibold">
+                    {preview.totalRaw} টি রো পাওয়া গেছে
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
+                    {preview.totalMapped} টি রেকর্ড ম্যাপ হয়েছে
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{preview.message}</p>
+
+                {preview.sampleMappedRows.length > 0 && (
+                  <div className="overflow-x-auto rounded border border-amber-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-amber-100/60">
+                        <tr>
+                          {Object.keys(preview.sampleMappedRows[0]).filter(k => preview.sampleMappedRows[0][k]).map(k => (
+                            <th key={k} className="px-3 py-2 text-left font-semibold text-xs whitespace-nowrap">
+                              {FIELD_LABELS[k] ?? k}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.sampleMappedRows.slice(0, 5).map((row, i) => (
+                          <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-amber-50/30"}>
+                            {Object.keys(preview.sampleMappedRows[0]).filter(k => preview.sampleMappedRows[0][k]).map(k => (
+                              <td key={k} className="px-3 py-2 max-w-[180px] truncate" title={row[k] ?? ""}>
+                                {row[k] ?? "—"}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {preview.sampleMappedRows.length === 0 && preview.sampleRawRows.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-destructive mb-2">
+                      ⚠ ম্যাপ করা যায়নি — raw data নিচে দেখুন:
+                    </p>
+                    <div className="overflow-x-auto rounded border border-red-200 bg-red-50/30">
+                      <table className="w-full text-xs">
+                        <thead className="bg-red-100/60">
+                          <tr>
+                            {Object.keys(preview.sampleRawRows[0]).map(k => (
+                              <th key={k} className="px-3 py-2 text-left font-semibold whitespace-nowrap">{k}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.sampleRawRows.slice(0, 5).map((row, i) => (
+                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-red-50/20"}>
+                              {Object.keys(preview.sampleRawRows[0]).map(k => (
+                                <td key={k} className="px-3 py-2 max-w-[200px] truncate" title={row[k] ?? ""}>{row[k] ?? "—"}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Drop zone */}
         <Card
@@ -257,7 +421,7 @@ export default function AdminUpload() {
               {dropping ? "এখানে ছেড়ে দিন" : "ফাইল টেনে এখানে ছাড়ুন অথবা ক্লিক করুন"}
             </p>
             <p className="text-sm text-muted-foreground mb-6">
-              একসাথে যেকোনো সংখ্যক ফাইল আপলোড করা যাবে, কোনো সীমা নেই
+              একসাথে যেকোনো সংখ্যক ফাইল আপলোড করা যাবে
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {["ZIP", "PDF", "XLSX", "XLS", "DOCX", "DOC", "CSV"].map((ext) => (
@@ -302,7 +466,7 @@ export default function AdminUpload() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {progressIcon(u.progress)}
-                          <span className="text-sm capitalize">
+                          <span className="text-sm">
                             {u.progress === "uploading" ? "আপলোড হচ্ছে..." :
                              u.progress === "processing" ? "প্রক্রিয়াকরণ..." :
                              u.progress === "done" ? "সম্পন্ন" : "ব্যর্থ"}
@@ -340,13 +504,13 @@ export default function AdminUpload() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       লোড হচ্ছে...
                     </TableCell>
                   </TableRow>
                 ) : !uploads || uploads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       কোনো আপলোড ইতিহাস নেই
                     </TableCell>
                   </TableRow>
@@ -371,7 +535,7 @@ export default function AdminUpload() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="h-7 px-2 text-xs font-bengali"
+                          className="h-7 px-2 text-xs"
                           onClick={() => handleDeleteUpload(job.id, job.filename)}
                         >
                           মুছুন
@@ -408,14 +572,14 @@ export default function AdminUpload() {
                 </p>
               </div>
               <div>
-                <p className="font-semibold mb-1">PDF / DOCX</p>
+                <p className="font-semibold mb-1">PDF (বাংলাদেশ EC ভোটার তালিকা)</p>
                 <p className="text-muted-foreground">
-                  "ভোটার নং:", "নাম:", "জেলা:" ইত্যাদি লেবেল সহ টেক্সট-ভিত্তিক ফাইল পার্স হবে।
+                  SutonnyMJ font-এর পুরনো EC PDF স্বয়ংক্রিয়ভাবে Unicode-এ রূপান্তর হবে।
                   স্ক্যানড ইমেজ PDF সমর্থিত নয়।
                 </p>
               </div>
               <div>
-                <p className="font-semibold mb-1">বিজয় এনকোডিং</p>
+                <p className="font-semibold mb-1">বিজয় / পুরনো এনকোডিং</p>
                 <p className="text-muted-foreground">
                   পুরনো বিজয় / ANSI এনকোডিংয়ের ভাঙা বাংলা অক্ষর স্বয়ংক্রিয়ভাবে সংশোধন করা হবে।
                 </p>
