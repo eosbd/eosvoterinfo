@@ -96,7 +96,7 @@ def fix_pre_base_e(text):
                     result.append(base + "\u09cc")           # ৌ
                     i += 1
                 else:
-                    result.append(base + "\u09cb")           # ে (default)
+                    result.append(base + "\u09c7")           # ে (default)
             # Ï not followed by Bengali consonant: discard
         else:
             result.append(ch)
