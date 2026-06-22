@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { MoreVertical, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface NavItem {
   label: string;
@@ -15,28 +14,54 @@ interface NavbarProps {
   menuItems?: NavItem[];
 }
 
+const HIDE_DELAY_MS = 3000;
+
 export function Navbar({ title, leftContent, rightContent, menuItems = [] }: NavbarProps) {
   const [visible, setVisible] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const lastScrollY = useRef(0);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const showNav = useCallback(() => {
+    setVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setVisible(false), HIDE_DELAY_MS);
+  }, []);
+
+  const hideNav = useCallback(() => {
+    setVisible(false);
+    setMenuOpen(false);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  }, []);
+
+  useEffect(() => {
+    hideTimer.current = setTimeout(() => setVisible(false), HIDE_DELAY_MS);
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
       const currentY = window.scrollY;
-      if (currentY < 60) {
-        setVisible(true);
+      if (currentY < lastScrollY.current - 5) {
+        showNav();
       } else if (currentY > lastScrollY.current + 10) {
-        setVisible(false);
-        setMenuOpen(false);
-      } else if (currentY < lastScrollY.current - 5) {
-        setVisible(true);
+        hideNav();
       }
       lastScrollY.current = currentY;
     };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (e.clientY < 80) showNav();
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    window.addEventListener("mousemove", onMouseMove);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("mousemove", onMouseMove);
+    };
+  }, [showNav, hideNav]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -52,7 +77,7 @@ export function Navbar({ title, leftContent, rightContent, menuItems = [] }: Nav
     <>
       {/* Main navbar */}
       <header
-        className={`border-b bg-card py-4 px-6 flex justify-between items-center shadow-sm sticky top-0 z-50 transition-transform duration-300 ${
+        className={`border-b bg-card py-4 px-6 flex justify-between items-center shadow-sm sticky top-0 z-40 transition-transform duration-300 ${
           visible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
@@ -71,25 +96,28 @@ export function Navbar({ title, leftContent, rightContent, menuItems = [] }: Nav
         </div>
       </header>
 
-      {/* Floating 3-dot button — visible only when navbar is hidden */}
-      <div
-        className={`fixed top-3 right-4 z-50 transition-all duration-300 ${
-          visible ? "opacity-0 pointer-events-none scale-75" : "opacity-100 scale-100"
-        }`}
-        ref={menuRef}
-      >
+      {/* Floating 3-dot button — ALWAYS visible, fixed top-right */}
+      <div className="fixed top-3 right-4 z-50" ref={menuRef}>
         <button
-          onClick={() => setMenuOpen((prev) => !prev)}
-          className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
-          aria-label="Open navigation"
+          onClick={() => {
+            if (!menuOpen) {
+              showNav();
+            }
+            setMenuOpen((prev) => !prev);
+          }}
+          className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+            visible
+              ? "bg-primary/20 text-primary hover:bg-primary/30"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
+          }`}
+          aria-label="Navigation menu"
         >
           {menuOpen ? <X className="w-5 h-5" /> : <MoreVertical className="w-5 h-5" />}
         </button>
 
         {/* Dropdown */}
         {menuOpen && (
-          <div className="absolute right-0 mt-2 w-52 bg-card border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-            {/* Nav items */}
+          <div className="absolute right-0 mt-2 w-52 bg-card border rounded-xl shadow-xl overflow-hidden">
             {menuItems.map((item) => (
               <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
                 <div className="px-4 py-3 text-sm font-bengali hover:bg-muted cursor-pointer transition-colors border-b last:border-0">
@@ -97,7 +125,6 @@ export function Navbar({ title, leftContent, rightContent, menuItems = [] }: Nav
                 </div>
               </Link>
             ))}
-            {/* Right content duplicated in menu */}
             {rightContent && (
               <div className="px-3 py-3 border-t" onClick={() => setMenuOpen(false)}>
                 {rightContent}
