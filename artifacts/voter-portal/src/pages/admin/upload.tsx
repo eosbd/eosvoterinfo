@@ -23,6 +23,8 @@ const STATUS_LABELS: Record<string, string> = {
   failed: "ব্যর্থ",
 };
 
+const CHUNK_SIZE = 800 * 1024; // 800 KB per chunk — stays well under proxy limits
+
 interface UploadingFile {
   name: string;
   size: number;
@@ -31,6 +33,8 @@ interface UploadingFile {
   processed?: number;
   failed?: number;
   error?: string;
+  chunksDone?: number;
+  chunksTotal?: number;
 }
 
 interface PreviewResult {
@@ -140,47 +144,74 @@ export default function AdminUpload() {
       return;
     }
 
-    const newUploads: UploadingFile[] = fileArray.map((f) => ({
-      name: f.name,
-      size: f.size,
-      progress: "uploading",
-    }));
+    const newUploads: UploadingFile[] = fileArray.map((f) => {
+      const totalChunks = Math.ceil(f.size / CHUNK_SIZE) || 1;
+      return { name: f.name, size: f.size, progress: "uploading", chunksDone: 0, chunksTotal: totalChunks };
+    });
     setActiveUploads((prev) => [...newUploads, ...prev]);
 
     for (const file of fileArray) {
-      const formData = new FormData();
-      formData.append("file", file);
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
+      const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       try {
-        const res = await fetch("/api/admin/upload", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-        if (res.ok) {
-          const data = await res.json();
+        // Upload each chunk sequentially
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end);
+
+          const fd = new FormData();
+          fd.append("uploadId", uploadId);
+          fd.append("chunkIndex", String(i));
+          fd.append("totalChunks", String(totalChunks));
+          fd.append("chunk", chunk, file.name);
+
+          const chunkRes = await fetch("/api/admin/upload-chunk", {
+            method: "POST",
+            body: fd,
+            credentials: "include",
+          });
+          if (!chunkRes.ok) {
+            const err = await chunkRes.json().catch(() => ({ error: "chunk ত্রুটি" }));
+            throw new Error(err.error ?? "chunk upload failed");
+          }
+
           setActiveUploads((prev) =>
             prev.map((u) =>
               u.name === file.name && u.progress === "uploading"
-                ? { ...u, progress: "processing", jobId: data.jobId }
-                : u,
-            ),
-          );
-          pollJob(data.jobId, file.name);
-        } else {
-          const err = await res.json().catch(() => ({ error: "অজানা ত্রুটি" }));
-          setActiveUploads((prev) =>
-            prev.map((u) =>
-              u.name === file.name && u.progress === "uploading"
-                ? { ...u, progress: "failed", error: err.error }
+                ? { ...u, chunksDone: i + 1 }
                 : u,
             ),
           );
         }
-      } catch {
+
+        // All chunks done — finalize
+        const finalRes = await fetch("/api/admin/upload-finalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uploadId, originalname: file.name, totalChunks }),
+          credentials: "include",
+        });
+        if (!finalRes.ok) {
+          const err = await finalRes.json().catch(() => ({ error: "finalize ত্রুটি" }));
+          throw new Error(err.error ?? "finalize failed");
+        }
+        const data = await finalRes.json();
         setActiveUploads((prev) =>
           prev.map((u) =>
             u.name === file.name && u.progress === "uploading"
-              ? { ...u, progress: "failed", error: "নেটওয়ার্ক ত্রুটি" }
+              ? { ...u, progress: "processing", jobId: data.jobId }
+              : u,
+          ),
+        );
+        pollJob(data.jobId, file.name);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "নেটওয়ার্ক ত্রুটি";
+        setActiveUploads((prev) =>
+          prev.map((u) =>
+            u.name === file.name && u.progress === "uploading"
+              ? { ...u, progress: "failed", error: msg }
               : u,
           ),
         );
@@ -467,7 +498,7 @@ export default function AdminUpload() {
                         <div className="flex items-center gap-2">
                           {progressIcon(u.progress)}
                           <span className="text-sm">
-                            {u.progress === "uploading" ? "আপলোড হচ্ছে..." :
+                            {u.progress === "uploading" ? (u.chunksTotal && u.chunksTotal > 1 ? `আপলোড হচ্ছে... (${u.chunksDone ?? 0}/${u.chunksTotal})` : "আপলোড হচ্ছে...") :
                              u.progress === "processing" ? "প্রক্রিয়াকরণ..." :
                              u.progress === "done" ? "সম্পন্ন" : "ব্যর্থ"}
                           </span>

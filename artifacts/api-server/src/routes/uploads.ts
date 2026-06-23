@@ -12,6 +12,8 @@ import { extractRowsFromPdfFile } from "../lib/extractors/pdfExtractor";
 import { extractRowsFromDocxFile } from "../lib/extractors/docxExtractor";
 import { extractRowsFromZipFile } from "../lib/extractors/zipExtractor";
 
+const chunksBaseDir = path.join("/tmp", "upload_chunks");
+
 const router: IRouter = Router();
 
 const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
@@ -42,6 +44,98 @@ const upload = multer({
       cb(new Error(`File type not supported: ${ext}. Allowed: ZIP, PDF, XLSX, XLS, DOCX, DOC, CSV`));
     }
   },
+});
+
+const chunkStorage = multer.diskStorage({
+  destination: (req, _file, cb) => {
+    const uploadId = req.body?.uploadId || "unknown";
+    const dir = path.join(chunksBaseDir, uploadId);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, _file, cb) => {
+    const idx = req.body?.chunkIndex ?? "0";
+    cb(null, `${String(idx).padStart(6, "0")}.chunk`);
+  },
+});
+const chunkUpload = multer({ storage: chunkStorage });
+
+// Chunked upload — receive one chunk at a time
+router.post("/admin/upload-chunk", chunkUpload.single("chunk"), async (req, res): Promise<void> => {
+  const { uploadId, chunkIndex, totalChunks } = req.body;
+  if (!uploadId || chunkIndex === undefined || !totalChunks) {
+    res.status(400).json({ error: "uploadId, chunkIndex, totalChunks required" });
+    return;
+  }
+  if (!req.file) {
+    res.status(400).json({ error: "No chunk data received" });
+    return;
+  }
+  res.json({ received: true, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks) });
+});
+
+// Chunked upload — finalize: concatenate chunks → move to uploads dir → start job
+router.post("/admin/upload-finalize", async (req, res): Promise<void> => {
+  const adminId = (req.session as any).adminId;
+  if (!adminId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const { uploadId, originalname, totalChunks } = req.body;
+  if (!uploadId || !originalname || !totalChunks) {
+    res.status(400).json({ error: "uploadId, originalname, totalChunks required" });
+    return;
+  }
+
+  const chunkDir = path.join(chunksBaseDir, uploadId);
+  const n = Number(totalChunks);
+
+  // Verify all chunks exist
+  for (let i = 0; i < n; i++) {
+    const chunkPath = path.join(chunkDir, `${String(i).padStart(6, "0")}.chunk`);
+    if (!fs.existsSync(chunkPath)) {
+      res.status(400).json({ error: `Missing chunk ${i}` });
+      return;
+    }
+  }
+
+  // Write assembled file to uploads dir
+  const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+  const finalName = `${unique}-${originalname}`;
+  const finalPath = path.join(uploadsDir, finalName);
+
+  try {
+    const out = fs.createWriteStream(finalPath);
+    await new Promise<void>((resolve, reject) => {
+      out.on("error", reject);
+      out.on("finish", resolve);
+
+      (async () => {
+        for (let i = 0; i < n; i++) {
+          const chunkPath = path.join(chunkDir, `${String(i).padStart(6, "0")}.chunk`);
+          const data = fs.readFileSync(chunkPath);
+          out.write(data);
+        }
+        out.end();
+      })();
+    });
+
+    // Clean up chunk dir
+    fs.rmSync(chunkDir, { recursive: true, force: true });
+
+    // Create upload job and start processing
+    const [job] = await db
+      .insert(uploadJobsTable)
+      .values({ filename: originalname, status: "processing" })
+      .returning();
+
+    processUploadJob(job.id, finalPath, originalname).catch((err) => {
+      logger.error({ err }, "Background upload error");
+    });
+
+    res.json({ jobId: job.id, status: "processing", message: "ফাইল একত্রিত হয়েছে। প্রক্রিয়াকরণ শুরু হয়েছে।" });
+  } catch (err) {
+    logger.error({ err }, "Chunk finalize error");
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 /** Extract raw rows from any supported file type */
