@@ -16,7 +16,7 @@ Python script `artifacts/api-server/src/lib/extractors/pdf_extract.py` using PyM
 3. fix_visual_order()   — reorder pre-base vowels ি/ে/ৈ to logical Unicode position
 4. fix_pre_base_e()     — handle Ï (U+00CF, pre-base ো/ে marker)
 ```
-**Why fix_suton_chars MUST come before fix_visual_order:** When ি/ে appear before SutonnyMJ conjunct glyphs (Latin range), fix_visual_order's Bengali consonant regex cannot match them → vowel stays misplaced. Example: raw `উিėন` → old order → `উিদ্দন` ✗; new order → `উদ্দিন` ✓.
+**Why fix_suton_chars MUST come before fix_visual_order:** When ি/ে appear before SutonnyMJ conjunct glyphs (Latin range), fix_visual_order's Bengali consonant regex cannot match them → vowel stays misplaced.
 
 ## Key CHAR_MAP entries (confirmed, non-obvious)
 | Glyph | Unicode | Bengali | Example |
@@ -57,15 +57,35 @@ Python script `artifacts/api-server/src/lib/extractors/pdf_extract.py` using PyM
 | Î U+00CE | র্  | reph | handled by fix_reph_position |
 | Ï U+00CF | (marker) | ো/ে | handled by fix_pre_base_e |
 
-## Remaining unmapped (very low frequency, ≤3 occurrences in 915-row sample)
-- U+0131 ı — "বিıব" (3x) — unclear
-- U+0182 Ƃ — "ষÿনুল" (3x) — unclear
-- U+0140 ŀ — rare names (2x) — unclear
-- U+00FC ü — "বাüারাম" (1x) — unclear
+## CRITICAL FIX (confirmed from 3584 raw occurrences)
+**Ō (U+014C) → ল্ল, NOT মো** — was wrongly mapped to মো. In BD EC Narayanganj PDFs, Ō is the ল্ল (double-la) conjunct.
+- ফতুŌা → ফতুল্লা (Fatullah) ✓
+- তŌা → তল্লা (Talla) ✓
+- আĺুŌাহ → আব্দুল্লাহ (Abdullah) ✓
+- ÏমাŌা → মোল্লা (Molla) ✓
+- উŌাহ → উল্লাহ (Ullah suffix) ✓
+- মো naturally comes from Ï + ম + া via fix_pre_base_e — Ō was redundant AND wrong.
 
-## Verified output quality
-All common occupations render correctly: বেসরকারী চাকরী, ছাত্র/ছাত্রী, ব্যবসা, শ্রমিক, সরকারী চাকরী, অবসরপ্রাপ্ত বেসরকারী/সরকারী চাকরী, ড্রাইভার, মিস্ত্রী, চিত্রকর, রিক্সা/ভ্যান চালক.
+## New mappings added (confirmed from 1873-record WARD NO-11 test PDF)
+| Glyph | Unicode | Bengali | Context |
+|-------|---------|---------|---------|
+| ı U+0131 | ি | i-matra | বিবি (Bibi) |
+| Ö U+00D6 | ক্ল | kla | ক্লাব (club) |
+| Ŕ U+0154 | শ্চ | shcha | পশ্চিম (west) |
+| Ŧ U+0166 | স্ক | ska | স্কুল (school), ইস্কান্দার |
+| ģ U+0123 | ন | na | লেন (lane) |
+| Ñ U+00D1 | ক | ka | বকর (Bakar) |
+| á U+00E1 | গ্ন | gna | সংলগ্ন (adjacent) |
+| Ā U+0100 | াথ | aatha | নাথ (Nath surname) |
+| î U+00EE | ব | ba | বাবু (Babu, mid-position ব variant) |
+| Ò U+00D2 | ক্ট | kTa | ফ্যাক্টরী (factory) |
+| ◌ U+25CC | "" | remove | dotted circle artifact |
+| Ì U+00CC | "" | remove | null glyph |
+| ¡ U+00A1 | ত | ta | ¡Ōা = তল্লা |
 
-Common surnames correct: চক্রবর্তী, ভট্টাচার্য, আচার্য্য, মুক্তিযোদ্ধা, সরস্বতী, কৃষ্ণ, গোবিন্দ, জাহাঙ্গীর, মোস্তফা, ইব্রাহীম, মুন্সী, পদ্মা, লক্ষ্মী, জ্ঞানেন্দ্র etc.
+## Verified output quality (1873-record test)
+After all fixes: 6 unresolved edge-case chars out of 1873 records (99.7% clean).
+Remaining unknowns (1 occurrence each, low priority): Ű U+0170, Ŭ U+016C, Ƃ U+0182, Đ U+0110, ņ U+0146, Ţ U+0162.
 
-"অজ্ঞাজ্ঞ" (5x in occupations) — possibly correct or needs further investigation.
+All common occupations render correctly: বেসরকারী চাকরী, ছাত্র/ছাত্রী, ব্যবসা, শ্রমিক, সরকারী চাকরী, অবসরপ্রাপ্ত, ড্রাইভার, মিস্ত্রী.
+All common address components: তল্লা, ফতুল্লা, নারায়ণগঞ্জ, রোড, দক্ষিণ, সংলগ্ন, ক্লাব, স্কুল, পশ্চিম.

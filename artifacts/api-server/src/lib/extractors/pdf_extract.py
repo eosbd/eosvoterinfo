@@ -44,8 +44,8 @@ CHAR_MAP = {
     "\u017f": "\u09a8\u09cd\u09a4", # ſ  → ন্ত  (nt)
     "\u017d": "\u09b6\u09cd\u09b0\u09c0", # Ž → শ্রী
     "\u017e": "\u09b6\u09cd\u09b0\u09c0", # ž → শ্রী
-    "\u014c": "\u09ae\u09cb",       # Ō  → মো
-    "\u014d": "\u09ae\u09cb",       # ō  → মো
+    "\u014c": "\u09b2\u09cd\u09b2",  # Ō  → ল্ল (ll — ফতুল্লা, তল্লা, আব্দুল্লাহ, মোল্লা; was wrongly মো)
+    "\u014d": "\u09b2\u09cd\u09b2",  # ō  → ল্ল (ll variant)
     "\u0132": "\u09dc",             # Ĳ  → ড়   (da dot below)
     "\u0133": "\u09dc",             # ĳ  → ড়
     "\u012f": "\u099c\u09cd\u099e", # į  → জ্ঞ  (gn conjunct)
@@ -101,6 +101,19 @@ CHAR_MAP = {
     "\u0129": "\u09a8\u09cd\u09b8", # ĩ  → ন্স  (ns — মুন্সী)
     "\u0142": "\u09a7",             # ł  → ধ    (dha — সুধা)
     "\u018f": "\u09a8\u09cd\u09a7\u09c1", # Ə → ন্ধু (ndhu — দীনবন্ধু)
+    "\u0131": "\u09bf",             # ı  → ি   (i-matra; বিবি, বিশ্ব)
+    "\u00d6": "\u0995\u09cd\u09b2", # Ö  → ক্ল  (kla — ক্লাব)
+    "\u0154": "\u09b6\u09cd\u099a", # Ŕ  → শ্চ  (shcha — পশ্চিম)
+    "\u0166": "\u09b8\u09cd\u0995", # Ŧ  → স্ক  (ska — স্কুল, ইস্কান্দার)
+    "\u0123": "\u09a8",             # ģ  → ন    (na — লেন/lane)
+    "\u00d1": "\u0995",             # Ñ  → ক    (ka — বকর/Bakar, আবু বÑর সিদ্দিক)
+    "\u00e1": "\u0997\u09cd\u09a8", # á  → গ্ন  (gna — সংলগ্ন/adjacent)
+    "\u0100": "\u09be\u09a5",       # Ā  → াথ  (aatha — নাথ/Nath surname)
+    "\u00ee": "\u09ac",             # î  → ব    (ba — বাবু, common name mid-position variant)
+    "\u00d2": "\u0995\u09cd\u099f", # Ò  → ক্ট  (kTa — ফ্যাক্টরী/factory)
+    "\u25cc": "",                   # ◌  → ""   (dotted circle = combining base artifact, remove)
+    "\u00cc": "",                   # Ì  → ""   (null glyph, silent variant)
+    "\u00a1": "\u09a4",             # ¡  → ত    (ta — ¡Ōা = তল্লা)
     "\x8c": "",                     # control char → remove
     "\x8d": "",                     # control char → remove
     "\x8e": "",                     # control char → remove
