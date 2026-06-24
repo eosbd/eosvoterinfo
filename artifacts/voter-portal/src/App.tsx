@@ -11,6 +11,7 @@ import AdminLogin from "./pages/admin/login";
 import AdminDashboard from "./pages/admin/dashboard";
 import AdminVoters from "./pages/admin/voters";
 import AdminUpload from "./pages/admin/upload";
+import ApiDocs from "./pages/api-docs";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/voters" component={AdminVoters} />
       <Route path="/admin/upload" component={AdminUpload} />
+      <Route path="/api-docs" component={ApiDocs} />
       
       <Route component={NotFound} />
     </Switch>

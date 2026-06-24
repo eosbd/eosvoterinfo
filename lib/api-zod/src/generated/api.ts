@@ -25,12 +25,19 @@ export const searchVotersQueryPageDefault = 1;
 export const searchVotersQueryLimitDefault = 20;
 
 export const SearchVotersQueryParams = zod.object({
-  "voterNo": zod.coerce.string().optional().describe('Exact voter number search (Bengali digits ok)'),
-  "name": zod.coerce.string().optional().describe('Partial name search'),
-  "fatherName": zod.coerce.string().optional().describe('Partial father name search'),
-  "district": zod.coerce.string().optional().describe('District filter'),
-  "thana": zod.coerce.string().optional().describe('Upazila\/thana filter'),
-  "ward": zod.coerce.string().optional().describe('Ward filter'),
+  "voterNo": zod.coerce.string().optional().describe('ভোটার নম্বর (আংশিক/পূর্ণ)'),
+  "name": zod.coerce.string().optional().describe('নাম (আংশিক/পূর্ণ)'),
+  "fatherName": zod.coerce.string().optional().describe('পিতার নাম (আংশিক/পূর্ণ)'),
+  "motherName": zod.coerce.string().optional().describe('মাতার নাম (আংশিক/পূর্ণ)'),
+  "district": zod.coerce.string().optional().describe('জেলা'),
+  "thana": zod.coerce.string().optional().describe('উপজেলা/থানা'),
+  "ward": zod.coerce.string().optional().describe('ওয়ার্ড নম্বর'),
+  "region": zod.coerce.string().optional().describe('বিভাগ'),
+  "cityCorp": zod.coerce.string().optional().describe('ইউনিয়ন/পৌরসভা/সিটি কর্পোরেশন'),
+  "postOffice": zod.coerce.string().optional().describe('ডাকঘর'),
+  "postCode": zod.coerce.string().optional().describe('পোস্টাল কোড'),
+  "voterAreaName": zod.coerce.string().optional().describe('গ্রাম/রাস্তা/ভোটার এলাকা'),
+  "generalAddress": zod.coerce.string().optional().describe('বাসা/হোল্ডিং/সাধারণ ঠিকানা'),
   "page": zod.coerce.number().default(searchVotersQueryPageDefault),
   "limit": zod.coerce.number().default(searchVotersQueryLimitDefault)
 })

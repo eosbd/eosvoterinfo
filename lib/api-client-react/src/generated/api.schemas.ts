@@ -152,30 +152,19 @@ export interface ErrorResponse {
 }
 
 export type SearchVotersParams = {
-/**
- * Exact voter number search (Bengali digits ok)
- */
 voterNo?: string;
-/**
- * Partial name search
- */
 name?: string;
-/**
- * Partial father name search
- */
 fatherName?: string;
-/**
- * District filter
- */
+motherName?: string;
 district?: string;
-/**
- * Upazila/thana filter
- */
 thana?: string;
-/**
- * Ward filter
- */
 ward?: string;
+region?: string;
+cityCorp?: string;
+postOffice?: string;
+postCode?: string;
+voterAreaName?: string;
+generalAddress?: string;
 page?: number;
 limit?: number;
 };
