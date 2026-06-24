@@ -103,19 +103,21 @@ router.post("/admin/upload-finalize", async (req, res): Promise<void> => {
   const finalPath = path.join(uploadsDir, finalName);
 
   try {
+    // Assemble chunks by piping each read stream into the write stream sequentially
     const out = fs.createWriteStream(finalPath);
+    for (let i = 0; i < n; i++) {
+      const chunkPath = path.join(chunkDir, `${String(i).padStart(6, "0")}.chunk`);
+      await new Promise<void>((resolve, reject) => {
+        const rs = fs.createReadStream(chunkPath);
+        rs.on("error", reject);
+        rs.on("end", resolve);
+        rs.pipe(out, { end: false });
+      });
+    }
     await new Promise<void>((resolve, reject) => {
       out.on("error", reject);
       out.on("finish", resolve);
-
-      (async () => {
-        for (let i = 0; i < n; i++) {
-          const chunkPath = path.join(chunkDir, `${String(i).padStart(6, "0")}.chunk`);
-          const data = fs.readFileSync(chunkPath);
-          out.write(data);
-        }
-        out.end();
-      })();
+      out.end();
     });
 
     // Clean up chunk dir

@@ -23,7 +23,8 @@ const STATUS_LABELS: Record<string, string> = {
   failed: "ব্যর্থ",
 };
 
-const CHUNK_SIZE = 800 * 1024; // 800 KB per chunk — stays well under proxy limits
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB per chunk
+const PARALLEL = 4; // upload 4 chunks simultaneously
 
 interface UploadingFile {
   name: string;
@@ -33,8 +34,8 @@ interface UploadingFile {
   processed?: number;
   failed?: number;
   error?: string;
-  chunksDone?: number;
-  chunksTotal?: number;
+  bytesUploaded?: number;
+  speedBps?: number;
 }
 
 interface PreviewResult {
@@ -144,49 +145,64 @@ export default function AdminUpload() {
       return;
     }
 
-    const newUploads: UploadingFile[] = fileArray.map((f) => {
-      const totalChunks = Math.ceil(f.size / CHUNK_SIZE) || 1;
-      return { name: f.name, size: f.size, progress: "uploading", chunksDone: 0, chunksTotal: totalChunks };
-    });
+    const newUploads: UploadingFile[] = fileArray.map((f) => ({
+      name: f.name, size: f.size, progress: "uploading", bytesUploaded: 0, speedBps: 0,
+    }));
     setActiveUploads((prev) => [...newUploads, ...prev]);
 
     for (const file of fileArray) {
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
       const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+      // Track per-chunk completion for accurate progress
+      const chunkBytesDone = new Array(totalChunks).fill(0);
+      let speedSamples: { t: number; b: number }[] = [];
+
+      const updateProgress = (chunkIdx: number, bytes: number) => {
+        chunkBytesDone[chunkIdx] = bytes;
+        const totalDone = chunkBytesDone.reduce((a, b) => a + b, 0);
+        const now = Date.now();
+        speedSamples.push({ t: now, b: totalDone });
+        if (speedSamples.length > 20) speedSamples = speedSamples.slice(-20);
+        const oldest = speedSamples[0];
+        const dt = (now - oldest.t) / 1000;
+        const speedBps = dt > 0 ? (totalDone - oldest.b) / dt : 0;
+        setActiveUploads((prev) =>
+          prev.map((u) =>
+            u.name === file.name && u.progress === "uploading"
+              ? { ...u, bytesUploaded: totalDone, speedBps }
+              : u,
+          ),
+        );
+      };
+
+      const uploadChunk = async (i: number): Promise<void> => {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        const fd = new FormData();
+        fd.append("uploadId", uploadId);
+        fd.append("chunkIndex", String(i));
+        fd.append("totalChunks", String(totalChunks));
+        fd.append("chunk", chunk, file.name);
+        const res = await fetch("/api/admin/upload-chunk", {
+          method: "POST", body: fd, credentials: "include",
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "chunk ত্রুটি" }));
+          throw new Error(err.error ?? `chunk ${i} failed`);
+        }
+        updateProgress(i, end - start);
+      };
+
       try {
-        // Upload each chunk sequentially
-        for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, file.size);
-          const chunk = file.slice(start, end);
-
-          const fd = new FormData();
-          fd.append("uploadId", uploadId);
-          fd.append("chunkIndex", String(i));
-          fd.append("totalChunks", String(totalChunks));
-          fd.append("chunk", chunk, file.name);
-
-          const chunkRes = await fetch("/api/admin/upload-chunk", {
-            method: "POST",
-            body: fd,
-            credentials: "include",
-          });
-          if (!chunkRes.ok) {
-            const err = await chunkRes.json().catch(() => ({ error: "chunk ত্রুটি" }));
-            throw new Error(err.error ?? "chunk upload failed");
-          }
-
-          setActiveUploads((prev) =>
-            prev.map((u) =>
-              u.name === file.name && u.progress === "uploading"
-                ? { ...u, chunksDone: i + 1 }
-                : u,
-            ),
-          );
+        // Upload chunks in parallel batches of PARALLEL
+        for (let i = 0; i < totalChunks; i += PARALLEL) {
+          const batch = Array.from({ length: Math.min(PARALLEL, totalChunks - i) }, (_, k) => uploadChunk(i + k));
+          await Promise.all(batch);
         }
 
-        // All chunks done — finalize
+        // Finalize — join chunks on server
         const finalRes = await fetch("/api/admin/upload-finalize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -201,7 +217,7 @@ export default function AdminUpload() {
         setActiveUploads((prev) =>
           prev.map((u) =>
             u.name === file.name && u.progress === "uploading"
-              ? { ...u, progress: "processing", jobId: data.jobId }
+              ? { ...u, progress: "processing", jobId: data.jobId, bytesUploaded: file.size }
               : u,
           ),
         );
@@ -287,7 +303,21 @@ export default function AdminUpload() {
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  const formatSpeed = (bps: number) => {
+    if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
+    return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
+  };
+
+  const formatEta = (remaining: number, bps: number) => {
+    if (bps <= 0) return "";
+    const s = remaining / bps;
+    if (s < 60) return `${Math.ceil(s)}s বাকি`;
+    if (s < 3600) return `${Math.ceil(s / 60)}m বাকি`;
+    return `${(s / 3600).toFixed(1)}h বাকি`;
   };
 
   const progressIcon = (p: UploadingFile["progress"]) => {
@@ -478,39 +508,54 @@ export default function AdminUpload() {
             <CardHeader>
               <CardTitle className="text-base">বর্তমান আপলোড</CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ফাইল</TableHead>
-                    <TableHead>আকার</TableHead>
-                    <TableHead>অবস্থা</TableHead>
-                    <TableHead>প্রক্রিয়াকৃত</TableHead>
-                    <TableHead>ব্যর্থ</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeUploads.map((u, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium max-w-xs truncate">{u.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{formatSize(u.size)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {progressIcon(u.progress)}
-                          <span className="text-sm">
-                            {u.progress === "uploading" ? (u.chunksTotal && u.chunksTotal > 1 ? `আপলোড হচ্ছে... (${u.chunksDone ?? 0}/${u.chunksTotal})` : "আপলোড হচ্ছে...") :
-                             u.progress === "processing" ? "প্রক্রিয়াকরণ..." :
-                             u.progress === "done" ? "সম্পন্ন" : "ব্যর্থ"}
+            <CardContent className="space-y-3 pt-0">
+              {activeUploads.map((u, i) => {
+                const pct = u.size > 0 ? Math.round(((u.bytesUploaded ?? 0) / u.size) * 100) : 0;
+                const remaining = u.size - (u.bytesUploaded ?? 0);
+                return (
+                  <div key={i} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {progressIcon(u.progress)}
+                        <span className="text-sm font-medium truncate">{u.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{formatSize(u.size)}</span>
+                    </div>
+
+                    {u.progress === "uploading" && (
+                      <>
+                        <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{formatSize(u.bytesUploaded ?? 0)} / {formatSize(u.size)} ({pct}%)</span>
+                          <span className="flex gap-3">
+                            {u.speedBps ? <span className="text-primary font-medium">{formatSpeed(u.speedBps)}</span> : null}
+                            {u.speedBps && remaining > 0 ? <span>{formatEta(remaining, u.speedBps)}</span> : null}
                           </span>
                         </div>
-                        {u.error && <p className="text-xs text-destructive mt-1">{u.error}</p>}
-                      </TableCell>
-                      <TableCell>{u.processed ?? "—"}</TableCell>
-                      <TableCell>{u.failed ?? "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </>
+                    )}
+
+                    {u.progress === "processing" && (
+                      <div className="text-xs text-blue-600 font-medium">PDF/ফাইল বিশ্লেষণ করা হচ্ছে...</div>
+                    )}
+
+                    {u.progress === "done" && (
+                      <div className="text-xs text-green-700">
+                        ✓ সম্পন্ন — {u.processed ?? 0} রেকর্ড যোগ হয়েছে{u.failed ? `, ${u.failed} ব্যর্থ` : ""}
+                      </div>
+                    )}
+
+                    {u.progress === "failed" && (
+                      <div className="text-xs text-destructive">✗ ব্যর্থ: {u.error}</div>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}
