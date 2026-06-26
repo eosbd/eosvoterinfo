@@ -1,52 +1,77 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const AdmZip = require("adm-zip") as new (buf: Buffer) => { getEntries(): Array<{ entryName: string; isDirectory: boolean; getData(): Buffer }> };
+import AdmZip from "adm-zip";
 import path from "path";
-import { extractRowsFromCsvBuffer } from "./csvExtractor";
-import { extractRowsFromXlsxBuffer } from "./xlsxExtractor";
-import { extractRowsFromPdfBuffer } from "./pdfExtractor";
-import { extractRowsFromDocxBuffer } from "./docxExtractor";
+import fs from "fs";
+import os from "os";
+import { extractRowsFromCsvFile } from "./csvExtractor";
+import { extractRowsFromXlsxFile } from "./xlsxExtractor";
+import { extractRowsFromPdfFile } from "./pdfExtractor";
+import { extractRowsFromDocxFile } from "./docxExtractor";
+import { logger } from "../logger";
 
-export async function extractRowsFromZipBuffer(buffer: Buffer): Promise<Record<string, string>[]> {
+export async function extractRowsFromZipFile(filePath: string): Promise<Record<string, string>[]> {
   let zip: InstanceType<typeof AdmZip>;
   try {
-    zip = new AdmZip(buffer);
-  } catch {
+    zip = new AdmZip(filePath);
+  } catch (err) {
+    logger.error({ err, filePath }, "Failed to open ZIP file");
     return [];
   }
 
   const entries = zip.getEntries();
   const allRows: Record<string, string>[] = [];
 
-  for (const entry of entries) {
-    if (entry.isDirectory) continue;
-    const name = entry.entryName.toLowerCase();
-    const ext = path.extname(name);
-    // Skip hidden/metadata files
-    if (name.startsWith("__macosx") || name.startsWith(".")) continue;
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zip-extract-"));
 
-    const entryBuffer = entry.getData();
+  try {
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
 
-    try {
-      let rows: Record<string, string>[] = [];
-      if (ext === ".csv") {
-        rows = extractRowsFromCsvBuffer(entryBuffer);
-      } else if (ext === ".xlsx" || ext === ".xls") {
-        rows = extractRowsFromXlsxBuffer(entryBuffer);
-      } else if (ext === ".pdf") {
-        rows = await extractRowsFromPdfBuffer(entryBuffer, entry.entryName);
-      } else if (ext === ".docx" || ext === ".doc") {
-        rows = await extractRowsFromDocxBuffer(entryBuffer);
+      const name = entry.entryName.toLowerCase();
+      const ext = path.extname(name);
+
+      if (name.startsWith("__macosx") || name.startsWith(".")) continue;
+
+      const supported = [".csv", ".xlsx", ".xls", ".pdf", ".docx", ".doc"];
+      if (!supported.includes(ext)) continue;
+
+      const safeName = path.basename(entry.entryName).replace(/[^a-zA-Z0-9._-]/g, "_");
+      const tempFile = path.join(tempDir, safeName);
+
+      try {
+        zip.extractEntryTo(entry.entryName, tempDir, false, true, false, safeName);
+
+        let rows: Record<string, string>[] = [];
+        if (ext === ".csv") {
+          rows = extractRowsFromCsvFile(tempFile);
+        } else if (ext === ".xlsx" || ext === ".xls") {
+          rows = extractRowsFromXlsxFile(tempFile);
+        } else if (ext === ".pdf") {
+          rows = await extractRowsFromPdfFile(tempFile);
+        } else if (ext === ".docx" || ext === ".doc") {
+          rows = await extractRowsFromDocxFile(tempFile);
+        }
+
+        allRows.push(...rows);
+        logger.info({ entry: entry.entryName, rows: rows.length }, "ZIP entry extracted");
+      } catch (err) {
+        logger.warn({ err, entry: entry.entryName }, "ZIP entry extraction failed, skipping");
+      } finally {
+        try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
       }
-      allRows.push(...rows);
-    } catch {
-      // Skip unreadable entries
     }
+  } finally {
+    try { fs.rmdirSync(tempDir); } catch { /* ignore */ }
   }
 
   return allRows;
 }
 
-export async function extractRowsFromZipFile(filePath: string): Promise<Record<string, string>[]> {
-  const buffer = require("fs").readFileSync(filePath);
-  return extractRowsFromZipBuffer(buffer);
+export async function extractRowsFromZipBuffer(buffer: Buffer): Promise<Record<string, string>[]> {
+  const tempFile = path.join(os.tmpdir(), `zip-buf-${Date.now()}.zip`);
+  try {
+    fs.writeFileSync(tempFile, buffer);
+    return await extractRowsFromZipFile(tempFile);
+  } finally {
+    try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+  }
 }
