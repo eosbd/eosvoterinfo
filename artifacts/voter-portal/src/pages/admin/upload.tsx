@@ -260,6 +260,22 @@ export default function AdminUpload() {
     }
   }, [toast]);
 
+  const handleRetryUpload = useCallback(async (id: number, filename: string) => {
+    try {
+      const res = await fetch(`/api/admin/uploads/${id}/retry`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        toast({ title: `${filename} — পুনরায় প্রক্রিয়াকরণ শুরু হয়েছে` });
+        queryClient.invalidateQueries({ queryKey: getListUploadsQueryKey() });
+        pollJob(id, filename);
+      } else {
+        const err = await res.json().catch(() => ({ error: "ত্রুটি" }));
+        toast({ title: "পুনরায় চেষ্টা ব্যর্থ", description: err.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "নেটওয়ার্ক ত্রুটি", variant: "destructive" });
+    }
+  }, [queryClient, toast, pollJob]);
+
   const handleDeleteUpload = useCallback(async (id: number, filename: string) => {
     if (!confirm(`"${filename}" — এই আপলোড রেকর্ড মুছে ফেলবেন?`)) return;
     try {
@@ -608,14 +624,26 @@ export default function AdminUpload() {
                         {new Date(job.createdAt).toLocaleString("bn-BD")}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => handleDeleteUpload(job.id, job.filename)}
-                        >
-                          মুছুন
-                        </Button>
+                        <div className="flex gap-1">
+                          {(job.status === "failed" || job.status === "processing") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleRetryUpload(job.id, job.filename)}
+                            >
+                              পুনরায়
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleDeleteUpload(job.id, job.filename)}
+                          >
+                            মুছুন
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

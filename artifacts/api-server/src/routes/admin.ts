@@ -11,6 +11,7 @@ import {
 import { extractRowsFromZipFile } from "../lib/extractors/zipExtractor";
 import { buildVoterRecord } from "../lib/bengali";
 import { logger } from "../lib/logger";
+import { processUploadJob } from "../lib/uploadProcessor";
 
 const router: IRouter = Router();
 
@@ -157,6 +158,68 @@ router.delete("/admin/uploads/:id", async (req, res): Promise<void> => {
   await db.delete(uploadJobsTable).where(eq(uploadJobsTable.id, id));
 
   res.json({ success: true, votersDeleted: deleted.length });
+});
+
+// Retry a specific failed/stuck upload job by its ID
+router.post("/admin/uploads/:id/retry", async (req, res): Promise<void> => {
+  const adminId = (req.session as any).adminId;
+  if (!adminId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [job] = await db.select().from(uploadJobsTable).where(eq(uploadJobsTable.id, id));
+  if (!job) { res.status(404).json({ error: "Upload job not found" }); return; }
+
+  const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
+    ? path.resolve(process.cwd(), "../..")
+    : process.cwd();
+  const uploadsDir = path.resolve(workspaceRoot, "artifacts/api-server/uploads");
+
+  // Find the physical file that belongs to this job
+  let matchedFile: string | null = null;
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    for (const f of files) {
+      if (f.includes(job.filename) || f.endsWith(`-${job.filename}`)) {
+        matchedFile = path.join(uploadsDir, f);
+        break;
+      }
+    }
+    // Broader search: check if filename is substring of stored file
+    if (!matchedFile) {
+      const base = job.filename.replace(/\s/g, "_");
+      for (const f of files) {
+        if (f.replace(/\s/g, "_").includes(base) || f.includes(job.filename.replace(/\s/g, "_"))) {
+          matchedFile = path.join(uploadsDir, f);
+          break;
+        }
+      }
+    }
+  } catch {
+    res.status(500).json({ error: "Could not read uploads directory" });
+    return;
+  }
+
+  if (!matchedFile || !fs.existsSync(matchedFile)) {
+    res.status(404).json({ error: `ফাইল খুঁজে পাওয়া যায়নি: ${job.filename}` });
+    return;
+  }
+
+  // Reset job status to processing
+  await db.update(uploadJobsTable)
+    .set({ status: "processing", errorMessage: null, recordsProcessed: null, recordsFailed: null })
+    .where(eq(uploadJobsTable.id, id));
+
+  // Delete previously imported voters for this job
+  const deleted = await db.delete(votersTable).where(eq(votersTable.uploadJobId, id)).returning({ id: votersTable.id });
+  logger.info({ jobId: id, votersDeleted: deleted.length }, "Cleared old voters for retry");
+
+  processUploadJob(id, matchedFile, job.filename).catch((err) => {
+    logger.error({ err, jobId: id }, "Retry processing error");
+  });
+
+  res.json({ success: true, jobId: id, message: "পুনরায় প্রক্রিয়াকরণ শুরু হয়েছে" });
 });
 
 // Reprocess all stored ZIPs with the corrected Bengali extractor

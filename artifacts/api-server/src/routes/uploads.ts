@@ -7,10 +7,7 @@ import { db, uploadJobsTable, votersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { buildVoterRecord } from "../lib/bengali";
 import { extractRowsFromCsvFile } from "../lib/extractors/csvExtractor";
-import { extractRowsFromXlsxFile } from "../lib/extractors/xlsxExtractor";
-import { extractRowsFromPdfFile } from "../lib/extractors/pdfExtractor";
-import { extractRowsFromDocxFile } from "../lib/extractors/docxExtractor";
-import { extractRowsFromZipFile } from "../lib/extractors/zipExtractor";
+import { extractRows, processUploadJob } from "../lib/uploadProcessor";
 
 const chunksBaseDir = path.join("/tmp", "upload_chunks");
 
@@ -88,7 +85,6 @@ router.post("/admin/upload-finalize", async (req, res): Promise<void> => {
   const chunkDir = path.join(chunksBaseDir, uploadId);
   const n = Number(totalChunks);
 
-  // Verify all chunks exist
   for (let i = 0; i < n; i++) {
     const chunkPath = path.join(chunkDir, `${String(i).padStart(6, "0")}.chunk`);
     if (!fs.existsSync(chunkPath)) {
@@ -97,13 +93,11 @@ router.post("/admin/upload-finalize", async (req, res): Promise<void> => {
     }
   }
 
-  // Write assembled file to uploads dir
   const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
   const finalName = `${unique}-${originalname}`;
   const finalPath = path.join(uploadsDir, finalName);
 
   try {
-    // Assemble chunks by piping each read stream into the write stream sequentially
     const out = fs.createWriteStream(finalPath);
     for (let i = 0; i < n; i++) {
       const chunkPath = path.join(chunkDir, `${String(i).padStart(6, "0")}.chunk`);
@@ -120,10 +114,8 @@ router.post("/admin/upload-finalize", async (req, res): Promise<void> => {
       out.end();
     });
 
-    // Clean up chunk dir
     fs.rmSync(chunkDir, { recursive: true, force: true });
 
-    // Create upload job and start processing
     const [job] = await db
       .insert(uploadJobsTable)
       .values({ filename: originalname, status: "processing" })
@@ -140,99 +132,8 @@ router.post("/admin/upload-finalize", async (req, res): Promise<void> => {
   }
 });
 
-/** Extract raw rows from any supported file type */
-async function extractRows(filePath: string, originalName: string): Promise<Record<string, string>[]> {
-  const ext = path.extname(originalName).toLowerCase();
-  switch (ext) {
-    case ".csv":
-      return extractRowsFromCsvFile(filePath);
-    case ".xlsx":
-    case ".xls":
-      return extractRowsFromXlsxFile(filePath);
-    case ".pdf":
-      return extractRowsFromPdfFile(filePath);
-    case ".docx":
-    case ".doc":
-      return extractRowsFromDocxFile(filePath);
-    case ".zip":
-      return extractRowsFromZipFile(filePath);
-    default:
-      return [];
-  }
-}
-
-/** Insert rows in batches of 200 for performance */
-async function batchInsertVoters(
-  rows: Record<string, string>[],
-  uploadJobId: number,
-): Promise<{ processed: number; failed: number }> {
-  let processed = 0;
-  let failed = 0;
-
-  const BATCH = 200;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH);
-    const records = chunk
-      .map((r) => buildVoterRecord(r))
-      .filter((r): r is NonNullable<typeof r> => r !== null)
-      .map((r) => ({ ...r, uploadJobId }));
-
-    if (records.length === 0) {
-      failed += chunk.length;
-      continue;
-    }
-
-    try {
-      await db.insert(votersTable).values(records);
-      processed += records.length;
-      failed += chunk.length - records.length;
-    } catch (err) {
-      // Batch failed — try one-by-one so we salvage good rows
-      for (const record of records) {
-        try {
-          await db.insert(votersTable).values(record);
-          processed++;
-        } catch (rowErr) {
-          logger.warn({ rowErr, voterNo: record.voterNo }, "Row insert failed");
-          failed++;
-        }
-      }
-    }
-  }
-
-  return { processed, failed };
-}
-
-async function processUploadJob(
-  jobId: number,
-  filePath: string,
-  originalName: string,
-): Promise<void> {
-  try {
-    logger.info({ jobId, originalName }, "Starting file extraction");
-    const rows = await extractRows(filePath, originalName);
-    logger.info({ jobId, rowCount: rows.length }, "Extraction complete, inserting rows");
-
-    const { processed, failed } = await batchInsertVoters(rows, jobId);
-    logger.info({ jobId, processed, failed }, "Import complete");
-
-    await db
-      .update(uploadJobsTable)
-      .set({ status: "done", recordsProcessed: processed, recordsFailed: failed })
-      .where(eq(uploadJobsTable.id, jobId));
-  } catch (err) {
-    logger.error({ err, jobId }, "Upload processing failed");
-    await db
-      .update(uploadJobsTable)
-      .set({ status: "failed", errorMessage: String(err) })
-      .where(eq(uploadJobsTable.id, jobId));
-  }
-}
-
 /**
  * Preview endpoint — extract rows from a file and return them WITHOUT inserting.
- * Use this to diagnose why data is not being found.
- * Returns: { rawRows, mappedRows, sample, totalRaw, totalMapped }
  */
 router.post("/admin/upload-preview", upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
@@ -246,7 +147,6 @@ router.post("/admin/upload-preview", upload.single("file"), async (req, res): Pr
       .map((r) => buildVoterRecord(r))
       .filter((r): r is NonNullable<typeof r> => r !== null);
 
-    // Return the first 10 raw rows and first 10 mapped rows as a sample
     res.json({
       filename: req.file.originalname,
       totalRaw: rawRows.length,

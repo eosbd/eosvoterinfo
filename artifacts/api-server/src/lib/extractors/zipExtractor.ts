@@ -42,7 +42,7 @@ export async function extractRowsFromZipFile(filePath: string): Promise<Record<s
 
         let rows: Record<string, string>[] = [];
         if (ext === ".csv") {
-          rows = extractRowsFromCsvFile(tempFile);
+          rows = await extractRowsFromCsvFile(tempFile);
         } else if (ext === ".xlsx" || ext === ".xls") {
           rows = extractRowsFromXlsxFile(tempFile);
         } else if (ext === ".pdf") {
