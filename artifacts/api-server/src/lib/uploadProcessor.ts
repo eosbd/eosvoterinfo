@@ -9,7 +9,7 @@ import { extractRowsFromPdfFile } from "./extractors/pdfExtractor";
 import { extractRowsFromDocxFile } from "./extractors/docxExtractor";
 import { extractRowsFromZipFile } from "./extractors/zipExtractor";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 200;
 
 export async function extractRows(filePath: string, originalName: string): Promise<Record<string, string>[]> {
   const ext = path.extname(originalName).toLowerCase();
