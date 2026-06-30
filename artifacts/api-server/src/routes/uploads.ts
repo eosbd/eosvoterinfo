@@ -141,8 +141,9 @@ router.post("/admin/upload-preview", upload.single("file"), async (req, res): Pr
     return;
   }
 
+  const filePath = req.file.path;
   try {
-    const rawRows = await extractRows(req.file.path, req.file.originalname);
+    const rawRows = await extractRows(filePath, req.file.originalname);
     const mappedRows = rawRows
       .map((r) => buildVoterRecord(r))
       .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -163,6 +164,8 @@ router.post("/admin/upload-preview", upload.single("file"), async (req, res): Pr
   } catch (err) {
     req.log.error({ err }, "Preview extraction failed");
     res.status(500).json({ error: String(err) });
+  } finally {
+    try { fs.unlinkSync(filePath); } catch { /* ignore */ }
   }
 });
 

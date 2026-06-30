@@ -69,6 +69,9 @@ router.get("/admin/me", async (req, res): Promise<void> => {
 
 // Dashboard stats
 router.get("/admin/dashboard", async (req, res): Promise<void> => {
+  const adminId = (req.session as any).adminId;
+  if (!adminId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
   const [totalResult, byDistrictRaw, byWardRaw, recentUploadsResult] = await Promise.all([
     db.select({ count: count() }).from(votersTable),
     db
@@ -102,6 +105,9 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
 
 // Admin voter list
 router.get("/admin/voters", async (req, res): Promise<void> => {
+  const adminId = (req.session as any).adminId;
+  if (!adminId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
   const parsed = ListVotersAdminQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

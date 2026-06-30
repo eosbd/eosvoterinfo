@@ -1,3 +1,4 @@
+import fs from "fs";
 import mammoth from "mammoth";
 import { fixBengaliEncoding, matchHeader } from "../bengali";
 
@@ -10,7 +11,6 @@ import { fixBengaliEncoding, matchHeader } from "../bengali";
  */
 
 function parseHtmlTableRows(html: string): Record<string, string>[] {
-  // Basic HTML table parser — extracts <tr><td>…</td></tr> rows
   const rows: Record<string, string>[] = [];
   const tableMatch = html.match(/<table[\s\S]*?<\/table>/gi);
   if (!tableMatch) return [];
@@ -19,7 +19,6 @@ function parseHtmlTableRows(html: string): Record<string, string>[] {
     const trMatches = table.match(/<tr[\s\S]*?<\/tr>/gi);
     if (!trMatches || trMatches.length < 2) continue;
 
-    // First row is headers
     const headerCells = trMatches[0]
       .match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)
       ?.map((cell) => {
@@ -54,7 +53,6 @@ function parseTextToRows(text: string): Record<string, string>[] {
       const value = line.slice(colonIdx + 1).trim();
       const field = matchHeader(label);
       if (field && value) {
-        // If we hit another "name" field, flush the current record
         if (field === "name" && current["name"]) {
           if (current["name"] || current["voterNo"]) rows.push({ ...current });
           current = {};
@@ -69,12 +67,10 @@ function parseTextToRows(text: string): Record<string, string>[] {
 
 export async function extractRowsFromDocxBuffer(buffer: Buffer): Promise<Record<string, string>[]> {
   try {
-    // Try HTML first (preserves tables)
     const htmlResult = await mammoth.convertToHtml({ buffer });
     const tableRows = parseHtmlTableRows(htmlResult.value);
     if (tableRows.length > 0) return tableRows;
 
-    // Fall back to text
     const textResult = await mammoth.extractRawText({ buffer });
     return parseTextToRows(textResult.value);
   } catch {
@@ -83,6 +79,6 @@ export async function extractRowsFromDocxBuffer(buffer: Buffer): Promise<Record<
 }
 
 export async function extractRowsFromDocxFile(filePath: string): Promise<Record<string, string>[]> {
-  const buffer = require("fs").readFileSync(filePath);
+  const buffer = fs.readFileSync(filePath);
   return extractRowsFromDocxBuffer(buffer);
 }

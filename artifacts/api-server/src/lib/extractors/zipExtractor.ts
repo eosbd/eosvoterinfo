@@ -38,7 +38,12 @@ export async function extractRowsFromZipFile(filePath: string): Promise<Record<s
       const tempFile = path.join(tempDir, safeName);
 
       try {
-        zip.extractEntryTo(entry.entryName, tempDir, false, true, false, safeName);
+        const data = entry.getData();
+        if (!data || data.length === 0) {
+          logger.warn({ entry: entry.entryName }, "ZIP entry has no data, skipping");
+          continue;
+        }
+        fs.writeFileSync(tempFile, data);
 
         let rows: Record<string, string>[] = [];
         if (ext === ".csv") {
@@ -60,7 +65,7 @@ export async function extractRowsFromZipFile(filePath: string): Promise<Record<s
       }
     }
   } finally {
-    try { fs.rmdirSync(tempDir); } catch { /* ignore */ }
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
   return allRows;

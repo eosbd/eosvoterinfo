@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import * as XLSX from "xlsx";
 import { fixBengaliEncoding, matchHeader } from "../bengali";
 import { logger } from "../../lib/logger";
@@ -8,7 +10,7 @@ import { logger } from "../../lib/logger";
  */
 function findHeaderRowIndex(sheet: XLSX.WorkSheet): number {
   const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1:A1");
-  const maxScanRows = Math.min(range.e.r + 1, 20); // scan first 20 rows at most
+  const maxScanRows = Math.min(range.e.r + 1, 20);
 
   let bestRow = 0;
   let bestScore = -1;
@@ -58,7 +60,6 @@ export function extractRowsFromXlsxBuffer(
     const headerRow = findHeaderRowIndex(sheet);
     const range = XLSX.utils.decode_range(sheet["!ref"]);
 
-    // Build header map: column index → field key
     const colToField: Record<number, string> = {};
     const rawHeaders: string[] = [];
     for (let c = range.s.c; c <= range.e.c; c++) {
@@ -84,7 +85,6 @@ export function extractRowsFromXlsxBuffer(
       continue;
     }
 
-    // Extract data rows
     for (let r = headerRow + 1; r <= range.e.r; r++) {
       const row: Record<string, string> = {};
       let hasValue = false;
@@ -107,9 +107,7 @@ export function extractRowsFromXlsxBuffer(
 }
 
 export function extractRowsFromXlsxFile(filePath: string): Record<string, string>[] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require("fs") as typeof import("fs");
   const buffer: Buffer = fs.readFileSync(filePath);
-  const filename = require("path").basename(filePath);
+  const filename = path.basename(filePath);
   return extractRowsFromXlsxBuffer(buffer, filename);
 }
