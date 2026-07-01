@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, count } from "drizzle-orm";
+import { eq, ilike, and, count, or } from "drizzle-orm";
 import { db, votersTable } from "@workspace/db";
 import {
   SearchVotersQueryParams,
@@ -10,14 +10,21 @@ import {
   CreateVoterBody,
   PublicApiSearchVoterQueryParams,
 } from "@workspace/api-zod";
+import { transliterateSearchQuery } from "../lib/bengali";
 
 const router: IRouter = Router();
+
+/** Convert Bengali digits to ASCII for voter number search */
+function normDigits(s: string): string {
+  return s.replace(/[০-৯]/g, d => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+}
 
 function buildSearchConditions(params: {
   voterNo?: string;
   name?: string;
   fatherName?: string;
   motherName?: string;
+  dob?: string;
   district?: string;
   thana?: string;
   ward?: string;
@@ -29,19 +36,54 @@ function buildSearchConditions(params: {
   generalAddress?: string;
 }) {
   const conditions = [];
-  if (params.voterNo)       conditions.push(ilike(votersTable.voterNo, `%${params.voterNo}%`));
-  if (params.name)          conditions.push(ilike(votersTable.name, `%${params.name}%`));
-  if (params.fatherName)    conditions.push(ilike(votersTable.fatherName, `%${params.fatherName}%`));
-  if (params.motherName)    conditions.push(ilike(votersTable.motherName, `%${params.motherName}%`));
-  if (params.district)      conditions.push(ilike(votersTable.district, `%${params.district}%`));
-  if (params.thana)         conditions.push(ilike(votersTable.upazilaThana, `%${params.thana}%`));
+
+  if (params.voterNo) {
+    // Match both Bengali digit and ASCII digit variants of voter number
+    const ascii = normDigits(params.voterNo);
+    conditions.push(ilike(votersTable.voterNo, `%${ascii}%`));
+  }
+
+  // For text fields: if query is ASCII (English), try transliteration first
+  const q = (raw?: string) => {
+    if (!raw) return null;
+    const bn = transliterateSearchQuery(raw);
+    // If transliteration produced Bengali text, search that; otherwise original
+    return bn !== raw ? `%${bn}%` : `%${raw}%`;
+  };
+
+  const name = q(params.name);
+  if (name) conditions.push(ilike(votersTable.name, name));
+
+  const father = q(params.fatherName);
+  if (father) conditions.push(ilike(votersTable.fatherName, father));
+
+  const mother = q(params.motherName);
+  if (mother) conditions.push(ilike(votersTable.motherName, mother));
+
+  if (params.dob)           conditions.push(ilike(votersTable.dob, `%${params.dob}%`));
+
+  const dist = q(params.district);
+  if (dist) conditions.push(ilike(votersTable.district, dist));
+
+  const thana = q(params.thana);
+  if (thana) conditions.push(ilike(votersTable.upazilaThana, thana));
+
   if (params.ward)          conditions.push(ilike(votersTable.ward, `%${params.ward}%`));
-  if (params.region)        conditions.push(ilike(votersTable.region, `%${params.region}%`));
-  if (params.cityCorp)      conditions.push(ilike(votersTable.cityCorp, `%${params.cityCorp}%`));
+
+  const region = q(params.region);
+  if (region) conditions.push(ilike(votersTable.region, region));
+
+  const cityCorp = q(params.cityCorp);
+  if (cityCorp) conditions.push(ilike(votersTable.cityCorp, cityCorp));
+
   if (params.postOffice)    conditions.push(ilike(votersTable.postOffice, `%${params.postOffice}%`));
   if (params.postCode)      conditions.push(ilike(votersTable.postCode, `%${params.postCode}%`));
-  if (params.voterAreaName) conditions.push(ilike(votersTable.voterAreaName, `%${params.voterAreaName}%`));
+
+  const area = q(params.voterAreaName);
+  if (area) conditions.push(ilike(votersTable.voterAreaName, area));
+
   if (params.generalAddress)conditions.push(ilike(votersTable.generalAddress, `%${params.generalAddress}%`));
+
   return conditions;
 }
 
@@ -53,14 +95,14 @@ router.get("/voters/search", async (req, res): Promise<void> => {
   }
 
   const {
-    voterNo, name, fatherName, motherName,
+    voterNo, name, fatherName, motherName, dob,
     district, thana, ward, region, cityCorp,
     postOffice, postCode, voterAreaName, generalAddress,
     page, limit,
   } = parsed.data;
 
   const conditions = buildSearchConditions({
-    voterNo, name, fatherName, motherName,
+    voterNo, name, fatherName, motherName, dob,
     district, thana, ward, region, cityCorp,
     postOffice, postCode, voterAreaName, generalAddress,
   });

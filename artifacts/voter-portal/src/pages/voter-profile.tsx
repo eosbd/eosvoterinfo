@@ -49,6 +49,7 @@ function printSingleVoter(voter: ReturnType<typeof useGetVoter>["data"]) {
     <div class="row"><div class="label">পিতার নাম</div><div class="value">${voter.fatherName || "—"}</div></div>
     <div class="row"><div class="label">মাতার নাম</div><div class="value">${voter.motherName || "—"}</div></div>
     <div class="row"><div class="label">জন্ম তারিখ</div><div class="value">${voter.dob || "—"}</div></div>
+    <div class="row"><div class="label">লিঙ্গ</div><div class="value">${voter.gender || "—"}</div></div>
     <div class="row"><div class="label">পেশা</div><div class="value">${voter.occupation || "—"}</div></div>
   </div>
 </div>
@@ -71,6 +72,8 @@ function printSingleVoter(voter: ReturnType<typeof useGetVoter>["data"]) {
     <div class="row"><div class="label">ভোটার এলাকার নম্বর</div><div class="value">${voter.voterAreaNumber || "—"}</div></div>
     <div class="row"><div class="label">এলাকা কোড</div><div class="value">${voter.areaCode || "—"}</div></div>
     <div class="row"><div class="label">ওয়ার্ড</div><div class="value">${voter.ward || "—"}</div></div>
+    <div class="row"><div class="label">ইউনিয়ন/ওয়ার্ড/ক্যাঃ বোঃ</div><div class="value">${voter.unionWardCab || "—"}</div></div>
+    <div class="row"><div class="label">তালিকা প্রকাশের তারিখ</div><div class="value">${voter.publishDate || "—"}</div></div>
   </div>
 </div>
 <div class="footer">মুদ্রণের তারিখ: ${new Date().toLocaleDateString("bn-BD")} | বাংলাদেশ নির্বাচন কমিশন</div>
@@ -168,6 +171,7 @@ export default function VoterProfile() {
             <DataRow label="পিতার নাম" value={voter.fatherName} />
             <DataRow label="মাতার নাম" value={voter.motherName} />
             <DataRow label="জন্ম তারিখ" value={voter.dob} />
+            <DataRow label="লিঙ্গ" value={voter.gender} />
             <DataRow label="পেশা" value={voter.occupation} />
           </CardContent>
         </Card>
@@ -204,6 +208,8 @@ export default function VoterProfile() {
             <DataRow label="ভোটার এলাকার নম্বর" value={voter.voterAreaNumber} />
             <DataRow label="এলাকা কোড" value={voter.areaCode} />
             <DataRow label="ওয়ার্ড" value={voter.ward} />
+            <DataRow label="ইউনিয়ন/ওয়ার্ড/ক্যাঃ বোঃ" value={voter.unionWardCab} />
+            <DataRow label="তালিকা প্রকাশের তারিখ" value={voter.publishDate} />
           </CardContent>
         </Card>
 

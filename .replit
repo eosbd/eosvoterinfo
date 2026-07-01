@@ -45,8 +45,8 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node scripts/setup.mjs && PORT=8080 pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
+args = "node scripts/setup.mjs && PORT=8000 pnpm --filter @workspace/api-server run dev"
+waitForPort = 8000
 
 [agent]
 stack = "BEST_EFFORT_FALLBACK"

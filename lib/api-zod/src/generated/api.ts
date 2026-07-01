@@ -29,6 +29,7 @@ export const SearchVotersQueryParams = zod.object({
   "name": zod.coerce.string().optional().describe('নাম (আংশিক/পূর্ণ)'),
   "fatherName": zod.coerce.string().optional().describe('পিতার নাম (আংশিক/পূর্ণ)'),
   "motherName": zod.coerce.string().optional().describe('মাতার নাম (আংশিক/পূর্ণ)'),
+  "dob": zod.coerce.string().optional().describe('জন্ম তারিখ (আংশিক/পূর্ণ)'),
   "district": zod.coerce.string().optional().describe('জেলা'),
   "thana": zod.coerce.string().optional().describe('উপজেলা/থানা'),
   "ward": zod.coerce.string().optional().describe('ওয়ার্ড নম্বর'),
@@ -52,17 +53,20 @@ export const SearchVotersResponse = zod.object({
   "motherName": zod.string().nullish(),
   "occupation": zod.string().nullish(),
   "dob": zod.string().nullish(),
+  "gender": zod.string().nullish(),
   "generalAddress": zod.string().nullish(),
   "region": zod.string().nullish(),
   "district": zod.string().nullish(),
   "upazilaThana": zod.string().nullish(),
   "cityCorp": zod.string().nullish(),
+  "unionWardCab": zod.string().nullish(),
   "postOffice": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "voterAreaName": zod.string().nullish(),
   "voterAreaNumber": zod.string().nullish(),
   "areaCode": zod.string().nullish(),
   "ward": zod.string().nullish(),
+  "publishDate": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })),
   "total": zod.number(),
@@ -87,17 +91,20 @@ export const GetVoterResponse = zod.object({
   "motherName": zod.string().nullish(),
   "occupation": zod.string().nullish(),
   "dob": zod.string().nullish(),
+  "gender": zod.string().nullish(),
   "generalAddress": zod.string().nullish(),
   "region": zod.string().nullish(),
   "district": zod.string().nullish(),
   "upazilaThana": zod.string().nullish(),
   "cityCorp": zod.string().nullish(),
+  "unionWardCab": zod.string().nullish(),
   "postOffice": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "voterAreaName": zod.string().nullish(),
   "voterAreaNumber": zod.string().nullish(),
   "areaCode": zod.string().nullish(),
   "ward": zod.string().nullish(),
+  "publishDate": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 
@@ -117,17 +124,20 @@ export const UpdateVoterBody = zod.object({
   "motherName": zod.string().optional(),
   "occupation": zod.string().optional(),
   "dob": zod.string().optional(),
+  "gender": zod.string().optional(),
   "generalAddress": zod.string().optional(),
   "region": zod.string().optional(),
   "district": zod.string().optional(),
   "upazilaThana": zod.string().optional(),
   "cityCorp": zod.string().optional(),
+  "unionWardCab": zod.string().optional(),
   "postOffice": zod.string().optional(),
   "postCode": zod.string().optional(),
   "voterAreaName": zod.string().optional(),
   "voterAreaNumber": zod.string().optional(),
   "areaCode": zod.string().optional(),
-  "ward": zod.string().optional()
+  "ward": zod.string().optional(),
+  "publishDate": zod.string().optional()
 })
 
 export const UpdateVoterResponse = zod.object({
@@ -139,17 +149,20 @@ export const UpdateVoterResponse = zod.object({
   "motherName": zod.string().nullish(),
   "occupation": zod.string().nullish(),
   "dob": zod.string().nullish(),
+  "gender": zod.string().nullish(),
   "generalAddress": zod.string().nullish(),
   "region": zod.string().nullish(),
   "district": zod.string().nullish(),
   "upazilaThana": zod.string().nullish(),
   "cityCorp": zod.string().nullish(),
+  "unionWardCab": zod.string().nullish(),
   "postOffice": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "voterAreaName": zod.string().nullish(),
   "voterAreaNumber": zod.string().nullish(),
   "areaCode": zod.string().nullish(),
   "ward": zod.string().nullish(),
+  "publishDate": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 
@@ -173,17 +186,20 @@ export const CreateVoterBody = zod.object({
   "motherName": zod.string().optional(),
   "occupation": zod.string().optional(),
   "dob": zod.string().optional(),
+  "gender": zod.string().optional(),
   "generalAddress": zod.string().optional(),
   "region": zod.string().optional(),
   "district": zod.string().optional(),
   "upazilaThana": zod.string().optional(),
   "cityCorp": zod.string().optional(),
+  "unionWardCab": zod.string().optional(),
   "postOffice": zod.string().optional(),
   "postCode": zod.string().optional(),
   "voterAreaName": zod.string().optional(),
   "voterAreaNumber": zod.string().optional(),
   "areaCode": zod.string().optional(),
-  "ward": zod.string().optional()
+  "ward": zod.string().optional(),
+  "publishDate": zod.string().optional()
 })
 
 

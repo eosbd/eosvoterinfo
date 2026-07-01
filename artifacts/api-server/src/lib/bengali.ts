@@ -140,6 +140,21 @@ const EXACT_HEADER_MAP: Record<string, string> = {
   "sub-district": "upazilaThana",
   "subdistrict": "upazilaThana",
   "ps": "upazilaThana",
+  // Gender
+  "লিঙ্গ": "gender",
+  "gender": "gender",
+  "sex": "gender",
+  "পুরুষ": "gender",
+  "মহিলা": "gender",
+  // Union / Ward / Cantonment Board
+  "ইউনিয়ন/ওয়ার্ড/ক্যাঃ বোঃ": "unionWardCab",
+  "ইউনিয়ন": "unionWardCab",
+  "union": "unionWardCab",
+  "union ward": "unionWardCab",
+  // Publication date
+  "প্রকাশের তারিখ": "publishDate",
+  "publish date": "publishDate",
+  "publication date": "publishDate",
   // City corp / Municipality
   "সিটি কর্পোরেশন": "cityCorp",
   "পৌরসভা": "cityCorp",
@@ -188,6 +203,95 @@ const EXACT_HEADER_MAP: Record<string, string> = {
   "ওয়ার্ড নং": "ward",
   "ওয়ার্ড নম্বর": "ward",
 };
+
+/** Transliterate common Bengali district/thana names to ASCII for English search */
+const TRANSLITERATION_MAP: Record<string, string> = {
+  "dhaka": "ঢাকা",
+  "chittagong": "চট্টগ্রাম",
+  "chattogram": "চট্টগ্রাম",
+  "sylhet": "সিলেট",
+  "rajshahi": "রাজশাহী",
+  "khulna": "খুলনা",
+  "barisal": "বরিশাল",
+  "barishal": "বরিশাল",
+  "rangpur": "রংপুর",
+  "mymensingh": "ময়মনসিংহ",
+  "comilla": "কুমিল্লা",
+  "cumilla": "কুমিল্লা",
+  "cox's bazar": "কক্সবাজার",
+  "coxsbazar": "কক্সবাজার",
+  "coxbazar": "কক্সবাজার",
+  "narayanganj": "নারায়ণগঞ্জ",
+  "gazipur": "গাজীপুর",
+  "bogura": "বগুড়া",
+  "bogra": "বগুড়া",
+  "jessore": "যশোর",
+  "jashore": "যশোর",
+  "dinajpur": "দিনাজপুর",
+  "tangail": "টাঙ্গাইল",
+  "jamalpur": "জামালপুর",
+  "pabna": "পাবনা",
+  "noakhali": "নোয়াখালী",
+  "feni": "ফেনী",
+  "lakshmipur": "লক্ষ্মীপুর",
+  "chandpur": "চাঁদপুর",
+  "brahmanbaria": "ব্রাহ্মণবাড়িয়া",
+  "habiganj": "হবিগঞ্জ",
+  "moulvibazar": "মৌলভীবাজার",
+  "sunamganj": "সুনামগঞ্জ",
+  "sirajganj": "সিরাজগঞ্জ",
+  "natore": "নাটোর",
+  "naogaon": "নওগাঁ",
+  "chapainawabganj": "চাঁপাইনবাবগঞ্জ",
+  "joypurhat": "জয়পুরহাট",
+  "kurigram": "কুড়িগ্রাম",
+  "gaibandha": "গাইবান্ধা",
+  "lalmonirhat": "লালমনিরহাট",
+  "nilphamari": "নীলফামারী",
+  "panchagarh": "পঞ্চগড়",
+  "thakurgaon": "ঠাকুরগাঁও",
+  "chuadanga": "চুয়াডাঙ্গা",
+  "meherpur": "মেহেরপুর",
+  "jhenaidah": "ঝিনাইদহ",
+  "jhenaidaha": "ঝিনাইদহ",
+  "narail": "নড়াইল",
+  "magura": "মাগুরা",
+  "faridpur": "ফরিদপুর",
+  "gopalganj": "গোপালগঞ্জ",
+  "madaripur": "মাদারীপুর",
+  "shariatpur": "শরীয়তপুর",
+  "munshiganj": "মুন্সীগঞ্জ",
+  "manikganj": "মানিকগঞ্জ",
+  "narsingdi": "নরসিংদী",
+  "kishoreganj": "কিশোরগঞ্জ",
+  "netrokona": "নেত্রকোণা",
+  "sherpur": "শেরপুর",
+  "pirojpur": "পিরোজপুর",
+  "jhalokati": "ঝালকাঠি",
+  "patuakhali": "পটুয়াখালী",
+  "barguna": "বরগুনা",
+  "bhola": "ভোলা",
+  "bandarban": "বান্দরবান",
+  "rangamati": "রাঙামাটি",
+  "khagrachhari": "খাগড়াছড়ি",
+  "satkhira": "সাতক্ষীরা",
+  "bagerhat": "বাগেরহাট",
+  "kushtia": "কুষ্টিয়া",
+  "rajbari": "রাজবাড়ী",
+};
+
+/**
+ * If a search query is in English (ASCII only), attempt to transliterate it
+ * to Bengali so the DB ilike search can match Bengali text.
+ * Returns the Bengali equivalent, or the original string if not transliterable.
+ */
+export function transliterateSearchQuery(query: string): string {
+  if (!query) return query;
+  // If query contains Bengali characters, return as-is
+  if (/[\u0980-\u09FF]/.test(query)) return query;
+  const lower = query.toLowerCase().trim();
+  return TRANSLITERATION_MAP[lower] || query;
+}
 
 /**
  * Substring-token match table.
@@ -295,8 +399,9 @@ export function matchHeader(raw: string): string | null {
  */
 const KNOWN_FIELDS = new Set([
   "serialNo", "voterNo", "name", "fatherName", "motherName", "occupation",
-  "dob", "generalAddress", "region", "district", "upazilaThana", "cityCorp",
-  "postOffice", "postCode", "voterAreaName", "voterAreaNumber", "areaCode", "ward",
+  "dob", "gender", "generalAddress", "region", "district", "upazilaThana", "cityCorp",
+  "unionWardCab", "postOffice", "postCode", "voterAreaName", "voterAreaNumber",
+  "areaCode", "ward", "publishDate",
 ]);
 
 export function buildVoterRecord(
@@ -339,17 +444,20 @@ export function buildVoterRecord(
     motherName: record["motherName"],
     occupation: record["occupation"],
     dob: record["dob"],
+    gender: record["gender"],
     generalAddress: record["generalAddress"],
     region: record["region"],
     district: record["district"],
     upazilaThana: record["upazilaThana"],
     cityCorp: record["cityCorp"],
+    unionWardCab: record["unionWardCab"],
     postOffice: record["postOffice"],
     postCode: record["postCode"],
     voterAreaName: record["voterAreaName"],
     voterAreaNumber: record["voterAreaNumber"],
     areaCode: record["areaCode"],
     ward: record["ward"],
+    publishDate: record["publishDate"],
     serialNo: record["serialNo"],
   };
 }
