@@ -208,25 +208,43 @@ RE_VOTER_START  = re.compile(r"^([০-৯\d]+)\.\s+নাম:\s*(.+)")
 RE_VOTER_NO     = re.compile(r"^ভোটার নং:\s*(.+)")
 RE_FATHER       = re.compile(r"^পিতা:\s*(.+)")
 RE_MOTHER       = re.compile(r"^মাতা:\s*(.+)")
-RE_OCC_DOB      = re.compile(r"^প[েো]শা:\s*(.*?)\s*জন্ম\s*তারিখ\s*[:\s]+(.+)", re.IGNORECASE)
+# Occupation + DOB on same line, optional gender token between them
+RE_OCC_DOB      = re.compile(
+    r"^প[েো]শা:\s*(.*?)\s*(?:পুরুষ|মহিলা|হিজড়া)?\s*জন্ম\s*তারিখ\s*[:\s]+(.+)",
+    re.IGNORECASE,
+)
 RE_OCC_ONLY     = re.compile(r"^প[েো]শা:\s*(.+)")
 RE_DOB_ONLY     = re.compile(r"^জন্ম\s*তারিখ\s*[:\s]+(.+)")
 RE_ADDRESS      = re.compile(r"^ঠিকানা:\s*(.+)")
-RE_GENDER       = re.compile(r"^(পুরুষ|মহিলা|হিজড়া)$")
+# Gender as standalone line OR labelled (লিঙ্গ:)
+RE_GENDER_LINE  = re.compile(r"^(?:লিঙ্গ[:\s]+)?(পুরুষ|মহিলা|হিজড়া)\s*$")
+# Gender token embedded in any line
+RE_GENDER_TOKEN = re.compile(r"\b(পুরুষ|মহিলা|হিজড়া)\b")
 
 # ─── Header / shared metadata patterns ────────────────────────────────────────
-RE_DISTRICT     = re.compile(r"^জ[েো]লা:\s*(.+)")
-RE_THANA        = re.compile(r"^উপ[েো]?জলা/থানা[:\s]+(.+)")
-RE_THANA2       = re.compile(r"^উপ[েো]?জলা[:\s]+(.+)")
-RE_CITYCORP     = re.compile(r"সিটি\s*\S+/পৌরসভা[:\s]+(.+)|সিটি\s*\S+[:\s]+(.+)", re.IGNORECASE)
-RE_AREA_NAME    = re.compile(r"ভোটার এলাকার নাম[:\s]+(.+)")
-RE_AREA_NUMBER  = re.compile(r"ভোটার এলাকার নং[রর্]*[:\s]+(.+)")
-RE_POST_OFFICE  = re.compile(r"^ডাকঘর[:\s]+(.+)")
-RE_POST_CODE    = re.compile(r"^পো[ষস][েো]?কাড?\s*[:\s]+(.+)")
-RE_REGION       = re.compile(r"^অ[ঞঅ][চ্ছ]?ল:\s*(.+)")
-RE_WARD_EMBED   = re.compile(r"ওয়া[রড][রড্]*\s*নং[-–\s]*([০-৯\d]+)")
-RE_UNION_WARD   = re.compile(r"ইউনিয়ন/ওয়ার[্ড]+[^:]*[:\s]+(.+)")
-RE_PUBLISH_DATE = re.compile(r"^প্রকাশের তারিখ[:\s]+(.+)")
+RE_DISTRICT     = re.compile(r"^জ[েো]লা\s*[:\s]\s*(.+)")
+# Region: BD EC PDFs label this as "বিভাগ:" (division)
+RE_REGION       = re.compile(r"^বিভাগ\s*[:\s]\s*(.+)")
+RE_REGION2      = re.compile(r"^অ[ঞঅ][চ্ছ]?ল\s*[:\s]\s*(.+)")
+# Thana/Upazila: various spellings
+RE_THANA        = re.compile(r"^উপজেলা\s*/\s*থানা\s*[:\s]\s*(.+)")
+RE_THANA2       = re.compile(r"^উপজেলা\s*[:\s]\s*(.+)")
+RE_THANA3       = re.compile(r"^থানা\s*[:\s]\s*(.+)")
+# City Corp / Municipality
+RE_CITYCORP     = re.compile(
+    r"(?:সিটি\s*\S+\s*/\s*পৌরসভা|ইউনিয়ন\s*/\s*পৌরসভা\s*/\s*সিটি\s*\S+|সিটি\s*\S+|পৌরসভা)\s*[:\s]\s*(.+)",
+    re.IGNORECASE,
+)
+RE_AREA_NAME    = re.compile(r"ভোটার\s*এলাকার\s*নাম\s*[:\s]\s*(.+)")
+RE_AREA_NUMBER  = re.compile(r"ভোটার\s*এলাকার\s*নং\s*[:\s]\s*(.+)")
+RE_POST_OFFICE  = re.compile(r"^ডাকঘর\s*[:\s]\s*(.+)")
+RE_POST_CODE    = re.compile(r"^পো[ষস][েো]?\s*কোড?\s*[:\s]\s*(.+)")
+# Ward number: standalone "ওয়ার্ড নং: X" OR embedded "ওয়ার্ড নং-X"
+RE_WARD_LINE    = re.compile(r"^ওয়ার্ড\s*নং\s*[:\s-]\s*([০-৯\d]+)")
+RE_WARD_EMBED   = re.compile(r"ওয়ার্ড\s*নং\s*[-–:\s]*([০-৯\d]+)")
+# Union/Ward/Cab (ক্যাঃ বোঃ)
+RE_UNION_WARD   = re.compile(r"ইউনিয়ন\s*/\s*ওয়ার্ড[^:\n]*[:\s]\s*(.+)")
+RE_PUBLISH_DATE = re.compile(r"^প্রকাশের\s*তারিখ\s*[:\s]\s*(.+)")
 
 # Lines to skip outright (not voter records, not useful header)
 SKIP_RE = [
@@ -243,9 +261,9 @@ SKIP_RE = [
     re.compile(r"^\s*[\u09E6-\u09EF\d]{1,3}\s*$"),
 ]
 
-META_RE = [RE_DISTRICT, RE_THANA, RE_THANA2, RE_CITYCORP, RE_AREA_NAME,
-           RE_AREA_NUMBER, RE_POST_OFFICE, RE_POST_CODE, RE_REGION,
-           RE_UNION_WARD, RE_PUBLISH_DATE]
+META_RE = [RE_DISTRICT, RE_REGION, RE_REGION2, RE_THANA, RE_THANA2, RE_THANA3,
+           RE_CITYCORP, RE_AREA_NAME, RE_AREA_NUMBER, RE_POST_OFFICE, RE_POST_CODE,
+           RE_WARD_LINE, RE_WARD_EMBED, RE_UNION_WARD, RE_PUBLISH_DATE]
 
 
 def is_metadata(line):
@@ -257,12 +275,17 @@ def update_meta(meta, line):
     m = RE_DISTRICT.match(line)
     if m and not meta.get("district"):
         meta["district"] = m.group(1).strip(); return
-    m = RE_THANA.match(line) or RE_THANA2.match(line)
+    # Region: try "বিভাগ:" first, then legacy "অঞ্চল:"
+    m = RE_REGION.match(line) or RE_REGION2.match(line)
+    if m and not meta.get("region"):
+        meta["region"] = m.group(1).strip(); return
+    # Thana: try "উপজেলা/থানা:", "উপজেলা:", "থানা:"
+    m = RE_THANA.match(line) or RE_THANA2.match(line) or RE_THANA3.match(line)
     if m and not meta.get("upazilaThana"):
         meta["upazilaThana"] = m.group(1).strip(); return
     m = RE_CITYCORP.search(line)
     if m and not meta.get("cityCorp"):
-        meta["cityCorp"] = (m.group(1) or m.group(2) or "").strip(); return
+        meta["cityCorp"] = m.group(1).strip(); return
     m = RE_AREA_NAME.search(line)
     if m and not meta.get("voterAreaName"):
         meta["voterAreaName"] = m.group(1).strip(); return
@@ -275,15 +298,16 @@ def update_meta(meta, line):
     m = RE_POST_CODE.match(line)
     if m and not meta.get("postCode"):
         meta["postCode"] = m.group(1).strip(); return
-    m = RE_REGION.match(line)
-    if m and not meta.get("region"):
-        meta["region"] = m.group(1).strip(); return
     m = RE_UNION_WARD.search(line)
     if m and not meta.get("unionWardCab"):
         meta["unionWardCab"] = m.group(1).strip(); return
     m = RE_PUBLISH_DATE.match(line)
     if m and not meta.get("publishDate"):
         meta["publishDate"] = m.group(1).strip(); return
+    # Ward number: standalone line first, then embedded
+    m = RE_WARD_LINE.match(line)
+    if m and not meta.get("ward"):
+        meta["ward"] = bn_to_ascii_digits(m.group(1).strip()); return
     m = RE_WARD_EMBED.search(line)
     if m and not meta.get("ward"):
         meta["ward"] = bn_to_ascii_digits(m.group(1).strip())
@@ -341,10 +365,10 @@ def parse_voter_pages(text, header_meta):
         if any(p.match(ln) for p in SKIP_RE):
             continue
 
-        # ── Gender line (standalone) ────────────────────────────────────────
-        m = RE_GENDER.match(ln)
+        # ── Gender as standalone line or "লিঙ্গ: পুরুষ" ───────────────────
+        m = RE_GENDER_LINE.match(ln)
         if m:
-            if current is not None:
+            if current is not None and not current.get("gender"):
                 current["gender"] = m.group(1)
             continue
 
@@ -374,13 +398,26 @@ def parse_voter_pages(text, header_meta):
 
         m = RE_OCC_DOB.match(ln)
         if m:
-            current["occupation"] = m.group(1).strip()
-            current["dob"] = m.group(2).strip()
+            occ = m.group(1).strip().rstrip(",").strip()
+            dob = m.group(2).strip()
+            current["occupation"] = occ
+            current["dob"] = dob
+            # Extract gender token that may be embedded between occupation and DOB
+            g = RE_GENDER_TOKEN.search(ln)
+            if g and not current.get("gender"):
+                current["gender"] = g.group(1)
             last_field = "dob"; continue
 
         m = RE_OCC_ONLY.match(ln)
         if m and not current.get("occupation"):
-            current["occupation"] = m.group(1).strip(); last_field = "occupation"; continue
+            occ_text = m.group(1).strip()
+            # Gender token embedded in the occupation line
+            g = RE_GENDER_TOKEN.search(occ_text)
+            if g and not current.get("gender"):
+                current["gender"] = g.group(1)
+                occ_text = RE_GENDER_TOKEN.sub("", occ_text).strip().rstrip(",").strip()
+            current["occupation"] = occ_text.rstrip(",").strip()
+            last_field = "occupation"; continue
 
         m = RE_DOB_ONLY.match(ln)
         if m and not current.get("dob"):
@@ -392,8 +429,7 @@ def parse_voter_pages(text, header_meta):
 
         # ── Continuation lines ────────────────────────────────────────────────
         if is_metadata(ln):
-            # Header line (repeated from subsequent page headers) — skip body parse,
-            # but update meta so ward etc. can still be captured
+            # Header line repeated on subsequent pages — skip for voter body
             continue
 
         if last_field == "generalAddress" and current.get("generalAddress"):
